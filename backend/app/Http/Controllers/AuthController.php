@@ -2,54 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    // =======================
+    // 📌 USER REGISTER
+    // =======================
     public function register(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
+        // Validate new fields including gender
+        $validatedData = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'gender'   => 'required|string',
         ]);
 
+        // Create user
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name'     => $validatedData['name'],
+            'email'    => $validatedData['email'],
+            'password' => Hash::make($validatedData['password']),
+            'gender'   => $validatedData['gender'],
         ]);
 
-        return response()->json([
-            'message' => 'User registered successfully!',
-            'user' => $user,
-        ], 201);
-    }
-
-    public function login(Request $request)
-    {
-        $validated = $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
-
-        $user = User::where('email', $validated['email'])->first();
-
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
+        // Auto-login after register → create token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful!',
-            'token' => $token,
-            'user' => $user,
+            'message' => 'Registration successful',
+            'token'   => $token,
+            'user'    => $user,
+        ]);
+    }
+
+
+    // =======================
+    // 📌 USER LOGIN
+    // =======================
+    public function login(Request $request)
+    {
+        // Validate
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required'
+        ]);
+
+        // Find user
+        $user = User::where('email', $request->email)->first();
+
+        // Wrong user or password
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Invalid login credentials'
+            ], 401);
+        }
+
+        // Create token (this matches your screenshot)
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token'   => $token,
+            'user'    => $user,
         ]);
     }
 }

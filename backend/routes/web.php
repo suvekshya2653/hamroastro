@@ -2,8 +2,21 @@
 
 use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| These routes return Blade views or simple pages.
+| DO NOT put API routes here.
+|
+*/
+
 Route::get('/', function () {
-    return ['Laravel' => app()->version()];
+    return view('welcome');
 });
 
-require __DIR__.'/auth.php';
+// If your React app is served from Laravel, you can optionally add:
+Route::get('{any}', function () {
+    return view('welcome');
+})->where('any', '.*');

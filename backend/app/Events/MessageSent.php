@@ -14,46 +14,34 @@ class MessageSent implements ShouldBroadcast
 
     public $message;
 
-    /**
-     * Create a new event instance.
-     */
     public function __construct(Message $message)
     {
-        $this->message = $message->load('user'); // include user relationship
+        $this->message = $message->load('user');
     }
 
-    /**
-     * The channel the event should broadcast on.
-     */
     public function broadcastOn()
     {
-        // public channel "chat" — matches echo.channel("chat") in frontend
         return new Channel('chat');
     }
 
-    /**
-     * The event name listened to by the frontend.
-     */
     public function broadcastAs()
     {
         return 'MessageSent';
     }
 
-    /**
-     * The data sent to the frontend.
-     */
     public function broadcastWith()
     {
+        // ✅ FIXED: Return flat structure matching what frontend expects
         return [
-            'message' => [
-                'id' => $this->message->id,
-                'text' => $this->message->text,
-                'user' => [
-                    'id' => $this->message->user->id,
-                    'name' => $this->message->user->name,
-                ],
-                'created_at' => $this->message->created_at,
+            'id' => $this->message->id,
+            'text' => $this->message->text,
+            'user_id' => $this->message->user_id,
+            'receiver_id' => $this->message->receiver_id,
+            'user' => [
+                'id' => $this->message->user->id,
+                'name' => $this->message->user->name,
             ],
+            'created_at' => $this->message->created_at,
         ];
     }
 }

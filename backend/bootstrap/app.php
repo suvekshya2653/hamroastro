@@ -13,24 +13,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-    // Web middleware group
-    $middleware->web(append: [
-        \Illuminate\Http\Middleware\HandleCors::class,
-    ]);
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
 
-    // API middleware group
-    $middleware->api(prepend: [
-        \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        \Illuminate\Http\Middleware\HandleCors::class,
-    ]);
-
-    // Register Sanctum authentication for API routes
-    $middleware->alias([
-        'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
-        'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-    ]);
-})
-
-    ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // ✅ REMOVED: $middleware->statefulApi();
+        // We're using token-based auth, not cookie-based sessions
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        // Return JSON for unauthenticated API requests
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+        });
     })->create();

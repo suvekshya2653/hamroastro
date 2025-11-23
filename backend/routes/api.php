@@ -1,21 +1,33 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MessageController;
+use App\Models\User;
+use App\Http\Controllers\UserProfileController;
 
-// Auth routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+// Public routes
+Route::post('register', [AuthController::class, 'register'])->name('register');
+Route::post('login', [AuthController::class, 'login'])->name('login');
 
-// Protected example
-Route::middleware('auth:sanctum')->get('/user', function ($request) {
-    return $request->user();
+
+Route::get('chat-users', function () {
+    return User::select('id', 'name', 'email', 'dob_nep', 'birth_time', 'city', 'country', 'street', 'gender')->get();
 });
+
+// Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/messages', [MessageController::class, 'index']);
-    Route::post('/messages', [MessageController::class, 'store']);
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('user', function (Request $request) {
+        return $request->user();
+    });
+
+    // Profile routes
+    Route::get('user/profile', [UserProfileController::class, 'show']);
+    Route::post('user/profile', [UserProfileController::class, 'store']);
+
+    // Messages
+    Route::get('messages', [MessageController::class, 'index']);
+    Route::post('messages', [MessageController::class, 'store']);
 });
-
-
