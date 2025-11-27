@@ -33,14 +33,16 @@ export default function Messages() {
     "Meen (मीन)"
   ];
 
-  // Get current logged-in user
+  // Get current logged-in user (admin)
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) {
+    const role = localStorage.getItem("role");
+    
+    if (!user || role !== "admin") {
       navigate("/login");
     } else {
       setCurrentUser(user);
-      console.log("Current User ID:", user.id);
+      console.log("👤 Admin User:", user);
     }
   }, [navigate]);
 
@@ -50,31 +52,27 @@ export default function Messages() {
   }, [messages]);
 
   // --------------------------
-  // FETCH CHAT USERS
+  // FETCH CHAT USERS (Customers)
   // --------------------------
   useEffect(() => {
     const fetchChatUsers = async () => {
       try {
         const res = await API.get("/chat-users");
-        // Filter out the current user from the chat list
-        const otherUsers = (res.data || []).filter(
-          (user) => user.id !== currentUser?.id
-        );
+        const users = res.data || [];
         
         // Sort users by last message time (newest first)
-        const sortedUsers = otherUsers.sort((a, b) => {
+        const sortedUsers = users.sort((a, b) => {
           const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
           const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
-          return dateB - dateA; // Descending order (newest first)
+          return dateB - dateA;
         });
         
-        console.log("Chat users loaded (excluding self):", sortedUsers.length);
+        console.log("📋 Chat users loaded:", sortedUsers.length);
         setChatUsers(sortedUsers);
       } catch (err) {
-        console.error("Error loading chat users:", err);
+        console.error("❌ Error loading chat users:", err);
         if (err.response?.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          localStorage.clear();
           navigate("/login");
         }
       }
@@ -85,73 +83,73 @@ export default function Messages() {
     }
   }, [navigate, currentUser]);
 
-  
-  
+  // --------------------------
+  // REAL-TIME CHAT WITH ECHO
+  // --------------------------
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log("Setting up Echo listener");
+    console.log("🔌 Admin connecting to Echo chat channel");
     const channel = echo.channel("chat");
-    let isSubscribed = true; // Flag to prevent state updates after unmount
+    let isSubscribed = true;
 
     const handleMessage = (e) => {
-      if (!isSubscribed) return; // Ignore if component unmounted
+      if (!isSubscribed) return;
       
-      console.log("🔥 Real-time message received:", e);
-
+      console.log("📩 Real-time message received (Admin):", e);
       const messageData = e.message || e;
-      
-      // Only add message if it involves the current user
-      const involvesCurrentUser = 
-        messageData.user_id === currentUser.id || 
-        messageData.receiver_id === currentUser.id;
 
-      if (!involvesCurrentUser) {
-        console.log("Message not for current user, ignoring");
+      // Check if this message is from a customer to admin
+      const isForAdmin = messageData.receiver_id === currentUser.id;
+      const isFromAdmin = messageData.user_id === currentUser.id;
+
+      // Skip messages sent by admin (already added optimistically)
+      if (isFromAdmin) {
+        console.log("Message sent by admin, skipping");
         return;
       }
 
-      // Check if this is a message WE just sent (skip it to avoid duplicates)
-      const isSentByMe = messageData.user_id === currentUser.id;
-      if (isSentByMe) {
-        console.log("Message sent by current user via broadcast, skipping (already added optimistically)");
+      // Only process messages sent TO admin (from customers)
+      if (!isForAdmin) {
+        console.log("Message not for admin, ignoring");
         return;
       }
 
-      // Only update for messages received FROM others
-      setMessages((prev) => {
-        // Check if message already exists (prevent duplicates)
-        const exists = prev.some((m) => m.id === messageData.id);
-        if (exists) {
-          console.log("Message already exists, skipping:", messageData.id);
-          return prev;
-        }
-        
-        console.log("Adding new real-time message:", messageData.id);
-        return [...prev, messageData];
-      });
+      // Add message to chat if this customer is selected
+      if (selectedUser && messageData.user_id === selectedUser.id) {
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === messageData.id);
+          if (exists) {
+            console.log("Message already exists, skipping");
+            return prev;
+          }
+          
+          console.log("✅ Adding new customer message to chat");
+          return [...prev, messageData];
+        });
+      }
 
-      // Update chat list to show new message preview and move to top
+      // Update chat list to show new message and move to top
       setChatUsers((prevUsers) => {
         const updatedUsers = prevUsers.map((user) => {
-          // Update the user who sent this message
           if (user.id === messageData.user_id) {
             return {
               ...user,
               last_message: messageData,
+              unread_count: (user.unread_count || 0) + 1, // Increment unread
             };
           }
           return user;
         });
         
-        // Sort to bring the updated conversation to the top
+        // Sort to bring updated conversation to top
         const sortedUsers = updatedUsers.sort((a, b) => {
           const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
           const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
           return dateB - dateA;
         });
         
-        console.log("Chat list updated with new message");
+        console.log("📋 Chat list updated with new message");
         return sortedUsers;
       });
     };
@@ -159,12 +157,12 @@ export default function Messages() {
     channel.listen(".MessageSent", handleMessage);
 
     return () => {
-      console.log("Cleaning up Echo listener");
+      console.log("🔌 Admin disconnecting from Echo");
       isSubscribed = false;
       channel.stopListening(".MessageSent", handleMessage);
       echo.leave("chat");
     };
-  }, [currentUser]);
+  }, [currentUser, selectedUser]);
 
   // --------------------------
   // FETCH MESSAGES FOR SELECTED USER
@@ -173,13 +171,19 @@ export default function Messages() {
     setLoading(true);
     try {
       const response = await API.get(`/messages?receiver_id=${userId}`);
-      console.log("Fetched messages:", response.data);
+      console.log("📜 Fetched messages for user:", userId, response.data);
       setMessages(response.data || []);
+      
+      // Mark messages as read
+      setChatUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, unread_count: 0 } : user
+        )
+      );
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("❌ Error fetching messages:", error);
       if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.clear();
         navigate("/login");
       }
     } finally {
@@ -192,19 +196,20 @@ export default function Messages() {
   // --------------------------
   const handleSelectUser = (user) => {
     setSelectedUser(user);
+    setSelectedRashi(""); // Reset rashi selection
     fetchMessages(user.id);
   };
 
   // --------------------------
-  // SEND MESSAGE
+  // SEND MESSAGE (Admin to Customer)
   // --------------------------
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUser) return;
 
     const messageText = newMessage.trim();
-    const tempId = `temp-${Date.now()}`; // Temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}`;
     
-    // Optimistic update - add message immediately with temp ID
+    // Optimistic update
     const optimisticMessage = {
       id: tempId,
       text: messageText,
@@ -218,21 +223,20 @@ export default function Messages() {
     setNewMessage(""); // Clear input immediately
 
     try {
-      const payload = {
+      const response = await API.post("/messages", {
         text: messageText,
         receiver_id: selectedUser.id,
-      };
+      });
 
-      const response = await API.post("/messages", payload);
       const sentMessage = response.data;
-      console.log("Sent message:", sentMessage);
+      console.log("✅ Admin message sent:", sentMessage);
 
-      // Replace temporary message with real one from server
-      setMessages((prev) => 
+      // Replace temp message with real one
+      setMessages((prev) =>
         prev.map((msg) => (msg.id === tempId ? sentMessage : msg))
       );
 
-      // Update chat list to move this conversation to top
+      // Update chat list
       setChatUsers((prevUsers) => {
         const updatedUsers = prevUsers.map((user) => {
           if (user.id === selectedUser.id) {
@@ -244,7 +248,6 @@ export default function Messages() {
           return user;
         });
         
-        // Sort to bring updated conversation to top
         return updatedUsers.sort((a, b) => {
           const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
           const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
@@ -252,8 +255,7 @@ export default function Messages() {
         });
       });
     } catch (error) {
-      console.error("Error sending message:", error);
-      // Remove optimistic message on error and restore input
+      console.error("❌ Error sending message:", error);
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
       setNewMessage(messageText);
     }
@@ -309,13 +311,19 @@ export default function Messages() {
         <div className="bg-[#202c33] p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {currentUser && (
-              <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-semibold">
-                {currentUser.name?.[0]?.toUpperCase() || "U"}
+              <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+                {currentUser.name?.[0]?.toUpperCase() || "A"}
               </div>
             )}
-            <h3 className="font-semibold text-white text-lg">Chats</h3>
+            <div>
+              <h3 className="font-semibold text-white text-lg">Admin Panel</h3>
+              <p className="text-xs text-gray-400">Hamro Astro</p>
+            </div>
           </div>
-          <FaEllipsisV className="text-gray-400 cursor-pointer hover:text-white" />
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-500">Online</span>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -324,7 +332,7 @@ export default function Messages() {
             <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="Search or start new chat"
+              placeholder="Search customers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-2 rounded-lg bg-[#202c33] text-white placeholder-gray-500 focus:outline-none"
@@ -335,7 +343,7 @@ export default function Messages() {
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
           {filteredUsers.length === 0 ? (
-            <p className="text-center text-gray-500 mt-10">No users found</p>
+            <p className="text-center text-gray-500 mt-10">No customers found</p>
           ) : (
             filteredUsers.map((user) => (
               <div
@@ -358,9 +366,16 @@ export default function Messages() {
                       {formatTime(user.last_message?.created_at)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 truncate">
-                    {user.last_message?.text || "No messages yet"}
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-400 truncate flex-1">
+                      {user.last_message?.text || "No messages yet"}
+                    </p>
+                    {user.unread_count > 0 && (
+                      <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2">
+                        {user.unread_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -374,7 +389,7 @@ export default function Messages() {
           <>
             {/* Chat Header */}
             <div className="bg-[#202c33] border-b border-[#2a3942]">
-              {/* NEW: User Info Row - TOP */}
+              {/* User Info Row */}
               <div className="bg-[#1c2730] px-4 py-3 border-b border-[#2a3942] flex items-start justify-between gap-6">
                 {/* LEFT: Rashi Select */}
                 <div className="flex items-center gap-2">
@@ -393,39 +408,32 @@ export default function Messages() {
                   </select>
                 </div>
 
-               <div className="flex gap-10 text-xs leading-relaxed">
+                <div className="flex gap-10 text-xs leading-relaxed">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400">जन्म मिति:</span>
+                    <span className="text-gray-300">{selectedUser.dob_nep || "N/A"}</span>
+                  </div>
 
-                {/* जन्म मिति (Nepali DOB) */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-400">जन्म मिति:</span>
-                  <span className="text-gray-300">{selectedUser.dob_nep || "N/A"}</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400">जन्म स्थान:</span>
+                    <span className="text-gray-300">
+                      {selectedUser.birth_place || "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400">जन्म समय:</span>
+                    <span className="text-gray-300">{selectedUser.birth_time || "N/A"}</span>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400">ठेगाना:</span>
+                    <span className="text-gray-300">{selectedUser.temp_address || "N/A"}</span>
+                  </div>
                 </div>
-
-                {/* जन्म स्थान (Birth Place) */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-400">जन्म स्थान:</span>
-                  <span className="text-gray-300">
-                    {selectedUser.birth_place || "N/A"}
-                  </span>
-                </div>
-
-                {/* जन्म समय (Birth Time) */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-400">जन्म समय:</span>
-                  <span className="text-gray-300">{selectedUser.birth_time || "N/A"}</span>
-                </div>
-
-                {/* ठेगाना (Address) */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-400">ठेगाना:</span>
-                  <span className="text-gray-300">{selectedUser.temp_address || "N/A"}</span>
-                </div>
-
-              </div>
               </div>
 
-
-              {/* User Name Row - BELOW */}
+              {/* User Name Row */}
               <div className="p-3 flex items-center gap-3">
                 <FaArrowLeft
                   className="text-white md:hidden cursor-pointer"
@@ -439,7 +447,7 @@ export default function Messages() {
                     {selectedUser.name}
                   </h3>
                   <p className="text-xs text-gray-400">
-                    {selectedUser.email || "Online"}
+                    {selectedUser.email || "Customer"}
                   </p>
                 </div>
                 <FaEllipsisV className="text-gray-400 cursor-pointer hover:text-white" />
@@ -464,23 +472,12 @@ export default function Messages() {
                 </div>
               ) : (
                 messages.map((msg, index) => {
-                  const messageUserId = msg.user_id || msg.sender_id || msg.from_user_id;
+                  const messageUserId = msg.user_id || msg.sender_id;
                   const currentUserId = currentUser?.id;
                   
-                  // Convert both to numbers for reliable comparison
+                  // Admin's messages are on right, customer's on left
                   const isOwnMessage = Number(messageUserId) === Number(currentUserId);
-                  
-                  // Create a unique key that won't conflict
                   const uniqueKey = msg.id ? `msg-${msg.id}` : `temp-${index}`;
-                  
-                  // Debug log to see what's happening
-                  console.log('Rendering message:', {
-                    msgId: msg.id,
-                    messageUserId,
-                    currentUserId,
-                    isOwnMessage,
-                    text: msg.text.substring(0, 30)
-                  });
                   
                   return (
                     <div
@@ -520,7 +517,7 @@ export default function Messages() {
             <div className="bg-[#202c33] p-3 flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Type a message"
+                placeholder="Type a message to customer..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -538,9 +535,9 @@ export default function Messages() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
             <div className="text-7xl mb-4">💬</div>
-            <h2 className="text-2xl font-light mb-2">astro web</h2>
+            <h2 className="text-2xl font-light mb-2">Hamro Astro Admin</h2>
             <p className="text-center max-w-md">
-              Send and receive messages without keeping your phone online.
+              Select a customer to view and respond to their messages.
             </p>
           </div>
         )}

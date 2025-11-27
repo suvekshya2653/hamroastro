@@ -1,44 +1,45 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
 
+Pusher.Runtime.createWebSocket = (url) => {
+    return new WebSocket(url); // Important for React
+};
+
 window.Pusher = Pusher;
 
-// Debug: confirm env is loading correctly
-console.log("🔧 REVERB CONFIG:", {
-  key: process.env.REACT_APP_REVERB_KEY,
-  host: process.env.REACT_APP_REVERB_HOST,
-  port: process.env.REACT_APP_REVERB_PORT,
-});
+window.Echo = new Echo({
+    broadcaster: "reverb",
 
-const echo = new Echo({
-  broadcaster: "reverb",
-  key: process.env.REACT_APP_REVERB_KEY || "sqja9bn48v14nbqjmts5",
-  wsHost: process.env.REACT_APP_REVERB_HOST || "localhost",
-  wsPort: process.env.REACT_APP_REVERB_PORT || 8080,
-  wssPort: process.env.REACT_APP_REVERB_PORT || 8080,
-  forceTLS: false,
-  enabledTransports: ["ws", "wss"],
-  disableStats: true,
-  // Add auth endpoint for private channels (if needed later)
-  authEndpoint: `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/broadcasting/auth`,
-  auth: {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    wsHost: process.env.REACT_APP_REVERB_HOST || "localhost",
+    wsPort: process.env.REACT_APP_REVERB_PORT || 8080,
+    wssPort: process.env.REACT_APP_REVERB_PORT || 8080,
+    key: process.env.REACT_APP_REVERB_APP_KEY || "sqja9bn48v14nbqjmts5",
+
+    forceTLS: false,
+    enabledTransports: ["ws"],
+    encrypted: false,
+
+    authEndpoint:
+        `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/broadcasting/auth`,
+
+    auth: {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
     },
-  },
 });
 
-// Connection status logging
-echo.connector.pusher.connection.bind("connected", () => {
-  console.log("✅ Reverb Connected!");
+// Debug
+window.Echo.connector.pusher.connection.bind("connected", () => {
+    console.log("💚 Reverb WebSocket Connected");
 });
 
-echo.connector.pusher.connection.bind("error", (err) => {
-  console.error("❌ Reverb Connection Error:", err);
+window.Echo.connector.pusher.connection.bind("error", (err) => {
+    console.error("❌ Reverb WebSocket Error:", err);
 });
 
-echo.connector.pusher.connection.bind("disconnected", () => {
-  console.warn("⚠️ Reverb Disconnected");
+window.Echo.connector.pusher.connection.bind("disconnected", () => {
+    console.warn("⚠️ Reverb WebSocket Disconnected");
 });
 
-export default echo;
+export default window.Echo;
