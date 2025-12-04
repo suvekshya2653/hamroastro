@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\UserProfileController;
@@ -43,6 +44,9 @@ Route::prefix('chat')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
 
+    // 🔥 CRITICAL: Broadcasting authentication for Laravel Echo
+    Broadcast::routes();
+
     // Auth endpoints
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('user', fn(Request $request) => $request->user());
@@ -63,15 +67,15 @@ Route::middleware('auth:sanctum')->group(function () {
     */
 
     // Get messages between current user and another user
-    // Customer: /messages?receiver_id=1 (admin ID = 1)
-    // Admin: /messages?receiver_id=<customer_id>
     Route::get('messages', [MessageController::class, 'index']);
+
+    // ✅ ADD THIS NEW LINE:
+    Route::get('check-payment', [MessageController::class, 'checkPaymentRequired']);
 
     // Send a message (both customer and admin use this)
     Route::post('messages', [MessageController::class, 'store']);
 
     // Get list of chat users with last messages (Admin dashboard)
-    // Admin uses this to see all customers with active chats
     Route::get('chat-users', [MessageController::class, 'chatUsers']);
 
     // Get all users (optional - for starting new conversations)
@@ -87,7 +91,6 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::middleware('admin')->group(function () {
         // Add any admin-specific endpoints here
-        // Example: analytics, user management, etc.
     });
 
 });

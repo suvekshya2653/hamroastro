@@ -1,24 +1,27 @@
+@"
+# Frontend
+/frontend/node_modules
+/frontend/build
+/frontend/.env*
+
+# Backend (Laravel)
+/backend/node_modules
+/backend/vendor
+/backend/.env
+/backend/.env.backup
+/backend/storage/*.key
+/backend/public/hot
+/backend/public/storage
+/backend/.phpunit.result.cache
+
+# Logs
 *.log
+
+# OS files
 .DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/vendor
-Homestead.json
-Homestead.yaml
 Thumbs.db
+
+# IDE
+.idea
+.vscode
+"@ | Out-File -FilePath .gitignore -Encoding utf8

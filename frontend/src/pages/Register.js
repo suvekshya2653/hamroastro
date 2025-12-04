@@ -32,12 +32,10 @@ export default function Register() {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
-    // Clear specific field error
     if (errors[name]) {
       setErrors({ ...errors, [name]: undefined });
     }
     
-    // Clear general error
     if (error) setError("");
   };
 
@@ -51,7 +49,6 @@ export default function Register() {
     setErrors({});
     setLoading(true);
 
-    // Client-side validation
     if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirm_password) {
       setError("Please fill in all required fields");
       setLoading(false);
@@ -73,7 +70,6 @@ export default function Register() {
     }
 
     try {
-      // Prepare payload for Laravel backend
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -85,6 +81,7 @@ export default function Register() {
         country: formData.perm_country || formData.temp_country || "Nepal",
         city: formData.perm_city || formData.temp_city || "Kathmandu",
         street: formData.perm_street || formData.temp_street || "Street",
+        role: "customer" // FIXED: Added default role
       };
 
       console.log("📤 Registering user with payload:", payload);
@@ -93,27 +90,24 @@ export default function Register() {
 
       console.log("✅ Registration response:", res.data);
 
-      if (res.data.success) {
+      if (res.data.success || res.data.token) {
         const { token, user } = res.data;
 
-        // Store in both sessionStorage and localStorage
         if (token) {
-          sessionStorage.setItem("token", token);
           localStorage.setItem("token", token);
           console.log("✅ Token stored successfully");
         }
         
         if (user) {
-          sessionStorage.setItem("user", JSON.stringify(user));
           localStorage.setItem("user", JSON.stringify(user));
+          localStorage.setItem("role", user.role || "customer");
           console.log("✅ User data stored:", user);
         }
         
-        setSuccess("Registration successful! Redirecting to messages...");
+        setSuccess("Registration successful! Redirecting...");
         
-        // Redirect after showing success message
         setTimeout(() => {
-          navigate("/messages", { replace: true });
+          navigate("/customerchat", { replace: true });
         }, 1500);
       } else {
         setError(res.data.message || "Registration failed");
@@ -123,11 +117,9 @@ export default function Register() {
       console.error("❌ Error response:", err.response?.data);
       
       if (err.response?.status === 422) {
-        // Laravel validation errors
         const validationErrors = err.response.data.errors || {};
         setErrors(validationErrors);
         
-        // Show first validation error as main error message
         const firstError = Object.values(validationErrors)[0];
         setError(Array.isArray(firstError) ? firstError[0] : "Please check the form for errors");
       } else if (err.response?.data?.message) {
@@ -146,18 +138,15 @@ export default function Register() {
         onSubmit={handleSubmit}
         className="w-full max-w-5xl bg-white shadow-lg rounded-2xl p-10 grid grid-cols-1 md:grid-cols-2 gap-10"
       >
-        {/* LEFT SIDE */}
         <div className="space-y-6">
           <h2 className="text-2xl font-bold text-gray-700 mb-4">Register</h2>
 
-          {/* Error message */}
           {error && (
             <div className="bg-red-100 border border-red-300 text-red-800 p-3 rounded-lg text-center">
               {error}
             </div>
           )}
 
-          {/* Full name */}
           <div>
             <label className="block font-medium mb-1">Full Name *</label>
             <input
@@ -168,14 +157,13 @@ export default function Register() {
               className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
               required
             />
-            {errors.full_name && (
+            {errors.name && (
               <p className="text-red-600 text-sm mt-1">
-                {Array.isArray(errors.full_name) ? errors.full_name[0] : errors.full_name}
+                {Array.isArray(errors.name) ? errors.name[0] : errors.name}
               </p>
             )}
           </div>
 
-          {/* Email */}
           <div>
             <label className="block font-medium mb-1">Email *</label>
             <input
@@ -193,7 +181,6 @@ export default function Register() {
             )}
           </div>
 
-          {/* Birth date + time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block font-medium mb-1">Birth Date</label>
@@ -228,7 +215,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Gender */}
           <div>
             <label className="block text-gray-700 mb-1">Gender</label>
             <select
@@ -249,7 +235,6 @@ export default function Register() {
             )}
           </div>
 
-          {/* Photo - OPTIONAL */}
           <div>
             <label className="block font-medium mb-1">Photo (optional)</label>
             <input
@@ -260,9 +245,7 @@ export default function Register() {
           </div>
         </div>
 
-        {/* RIGHT SIDE */}
         <div className="space-y-8">
-          {/* TEMPORARY ADDRESS */}
           <div className="space-y-4">
             <h3 className="text-xl font-semibold text-gray-700">
               Temporary Address
@@ -295,7 +278,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* PERMANENT ADDRESS */}
           <div className="space-y-4">
             <h3 className="text-xl font-semibold text-gray-700">
               Permanent Address
@@ -333,9 +315,7 @@ export default function Register() {
             )}
           </div>
 
-          {/* PASSWORD + CONFIRM PASSWORD */}
           <div className="space-y-4">
-            {/* Password */}
             <div className="relative">
               <label className="block font-medium mb-1">Password *</label>
               <input
@@ -359,7 +339,6 @@ export default function Register() {
               )}
             </div>
 
-            {/* Confirm Password */}
             <div className="relative">
               <label className="block font-medium mb-1">Confirm Password *</label>
               <input
@@ -382,7 +361,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* SUBMIT BUTTON */}
           <button
             type="submit"
             disabled={loading}
@@ -391,7 +369,6 @@ export default function Register() {
             {loading ? "Registering..." : "Submit"}
           </button>
 
-          {/* LOGIN LINK */}
           <p className="text-center text-gray-600">
             Already have an account?{" "}
             <Link to="/login" className="text-blue-600 font-semibold">
@@ -399,7 +376,6 @@ export default function Register() {
             </Link>
           </p>
 
-          {/* SUCCESS MESSAGE */}
           {success && (
             <div className="bg-green-100 border border-green-300 text-green-800 p-3 rounded-lg text-center font-medium">
               {success}

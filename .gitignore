@@ -1,0 +1,38 @@
+@"
+# Dependencies
+node_modules/
+/backend/node_modules
+/frontend/node_modules
+%AppData%/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+/backend/.env
+/backend/.env.backup
+/frontend/.env
+/frontend/.env.local
+
+# Laravel
+/backend/vendor
+/backend/storage/*.key
+/backend/public/hot
+/backend/public/storage
+/backend/.phpunit.result.cache
+
+# Build
+/frontend/build
+/backend/public/build
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.vscode
+"@ | Out-File -FilePath .gitignore -Encoding utf8 -Force

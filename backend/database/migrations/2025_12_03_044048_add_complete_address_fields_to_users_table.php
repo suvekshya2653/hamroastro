@@ -12,27 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // Personal Information
-            $table->string('gender')->nullable()->after('email');
-            $table->date('dob')->nullable()->after('gender'); // English date of birth
-            $table->string('dob_nep')->nullable()->after('dob'); // Nepali date of birth
-            $table->time('birth_time')->nullable()->after('dob_nep');
-            $table->string('birth_place')->nullable()->after('birth_time');
-
-            // Address Information
+            // Temporary Address (break down into components)
             $table->string('temp_country')->nullable()->after('birth_place');
             $table->string('temp_city')->nullable()->after('temp_country');
             $table->string('temp_street')->nullable()->after('temp_city');
 
-            $table->string('perm_country')->nullable()->after('temp_street');
+            // Permanent Address
+            $table->string('perm_country')->nullable()->after('temp_address');
             $table->string('perm_city')->nullable()->after('perm_country');
             $table->string('perm_street')->nullable()->after('perm_city');
-
-            // Profile Photo
-            $table->string('photo')->nullable()->after('perm_street');
-
-            // Astrology Related (if needed)
-            $table->string('rashi')->nullable()->after('photo');
+            $table->text('perm_address')->nullable()->after('perm_street'); // Full permanent address
         });
     }
 
@@ -43,19 +32,13 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn([
-                'gender',
-                'dob',
-                'dob_nep',
-                'birth_time',
-                'birth_place',
                 'temp_country',
                 'temp_city',
                 'temp_street',
                 'perm_country',
                 'perm_city',
                 'perm_street',
-                'photo',
-                'rashi'
+                'perm_address'
             ]);
         });
     }

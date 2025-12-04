@@ -12,22 +12,34 @@ class Message extends Model
     protected $table = 'messages';
 
     protected $fillable = [
-        'user_id',        // sender (user or customer)
-        'receiver_id',    // receiver (user or admin)
+        'user_id',        // sender (client or admin)
+        'receiver_id',    // receiver (admin or client)
         'text',           // chat message
-        'conversation_id' // group under a conversation
+        'conversation_id', // thread
+        // ✅ NEW: Payment fields
+        'is_paid',
+        'transaction_id',
+        'payment_status',
+        'amount',
+        'paid_at',
     ];
 
-    protected $with = ['user'];
+    // ✅ NEW: Add this $casts array
+    protected $casts = [
+        'is_paid' => 'boolean',
+        'paid_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id'); // sender
     }
 
     public function receiver()
     {
-        return $this->belongsTo(User::class, 'receiver_id');
+        return $this->belongsTo(User::class, 'receiver_id'); // receiver
     }
 
     public function conversation()
