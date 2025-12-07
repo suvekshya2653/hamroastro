@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api";
-import { FaUser, FaCamera, FaCalendar, FaClock, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHome, FaArrowLeft } from "react-icons/fa";
+import { FaUser, FaCamera, FaCalendar, FaClock, FaMapMarkerAlt, FaEnvelope, FaVenusMars, FaArrowLeft } from "react-icons/fa";
 
 export default function UserProfile() {
   const navigate = useNavigate();
@@ -13,12 +13,16 @@ export default function UserProfile() {
   const [form, setForm] = useState({
     photo: null,
     name: "",
+    email: "",
+    gender: "",
     dob_nep: "",
     birth_time: "",
-    birth_place: "",
-    temp_address: "",
-    phone: "",
-    email: "",
+    temp_country: "",
+    temp_city: "",
+    temp_street: "",
+    perm_country: "",
+    perm_city: "",
+    perm_street: "",
   });
 
   // Load user data on component mount
@@ -43,17 +47,21 @@ export default function UserProfile() {
         setForm({
           photo: null,
           name: userData.name || "",
+          email: userData.email || "",
+          gender: userData.gender || "",
           dob_nep: userData.dob_nep || "",
           birth_time: userData.birth_time || "",
-          birth_place: userData.birth_place || "",
-          temp_address: userData.temp_address || "",
-          phone: userData.phone || "",
-          email: userData.email || "",
+          temp_country: userData.temp_country || "",
+          temp_city: userData.temp_city || "",
+          temp_street: userData.temp_street || "",
+          perm_country: userData.perm_country || "",
+          perm_city: userData.perm_city || "",
+          perm_street: userData.perm_street || "",
         });
 
         // Set photo preview if exists
         if (userData.photo) {
-          setPhotoPreview(`http://localhost:8000/storage/${userData.photo}`);
+          setPhotoPreview(`${process.env.REACT_APP_API_URL || 'https://hamroastro.com'}/storage/${userData.photo}`);
         }
 
         setLoading(false);
@@ -67,6 +75,15 @@ export default function UserProfile() {
             ...prev,
             name: user.name || "",
             email: user.email || "",
+            gender: user.gender || "",
+            dob_nep: user.dob_nep || "",
+            birth_time: user.birth_time || "",
+            temp_country: user.temp_country || "",
+            temp_city: user.temp_city || "",
+            temp_street: user.temp_street || "",
+            perm_country: user.perm_country || "",
+            perm_city: user.perm_city || "",
+            perm_street: user.perm_street || "",
           }));
         }
         
@@ -118,7 +135,7 @@ export default function UserProfile() {
       localStorage.setItem("user", JSON.stringify(updatedUser));
       
       alert("✅ Profile saved successfully!");
-      navigate("/messages"); 
+      navigate("/customerchat"); 
     } catch (error) {
       console.error("Error saving profile:", error);
       alert("❌ Error saving profile: " + (error.response?.data?.message || error.message));
@@ -141,7 +158,7 @@ export default function UserProfile() {
       <div className="bg-[#202c33] p-4 flex items-center gap-3 sticky top-0 z-10">
         <FaArrowLeft 
           className="text-xl cursor-pointer hover:text-[#00a884]" 
-          onClick={() => navigate("/messages")}
+          onClick={() => navigate("/customerchat")}
         />
         <h1 className="text-xl font-semibold">Profile</h1>
       </div>
@@ -188,6 +205,42 @@ export default function UserProfile() {
             />
           </div>
 
+          {/* Email */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-400">
+              <FaEnvelope /> Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884] disabled:opacity-50"
+              placeholder="your.email@example.com"
+              disabled
+            />
+            <p className="text-xs text-gray-500">Email cannot be changed (from registration)</p>
+          </div>
+
+          {/* Gender */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-400">
+              <FaVenusMars /> Gender <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="gender"
+              value={form.gender}
+              onChange={handleChange}
+              required
+              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
           {/* Date of Birth (Nepali) */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-gray-400">
@@ -218,65 +271,88 @@ export default function UserProfile() {
             />
           </div>
 
-          {/* Place of Birth */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-gray-400">
-              <FaMapMarkerAlt /> Place of Birth <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="birth_place"
-              value={form.birth_place}
-              onChange={handleChange}
-              required
-              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-              placeholder="e.g., Kathmandu, Nepal"
-            />
+          {/* Temporary Address Section */}
+          <div className="space-y-4 border-t border-[#2a3942] pt-6">
+            <h3 className="text-lg font-semibold text-[#00a884] flex items-center gap-2">
+              <FaMapMarkerAlt /> Temporary Address
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Country</label>
+                <input
+                  name="temp_country"
+                  value={form.temp_country}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Nepal"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">City</label>
+                <input
+                  name="temp_city"
+                  value={form.temp_city}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Kathmandu"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Street</label>
+                <input
+                  name="temp_street"
+                  value={form.temp_street}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Thamel"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Temporary Address */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-gray-400">
-              <FaHome /> Temporary Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="temp_address"
-              value={form.temp_address}
-              onChange={handleChange}
-              required
-              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-              placeholder="Enter your current address"
-            />
-          </div>
-
-          {/* Phone Number */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-gray-400">
-              <FaPhone /> Phone Number
-            </label>
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-              placeholder="e.g., +977 9812345678"
-            />
-          </div>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-gray-400">
-              <FaEnvelope /> Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884] disabled:opacity-50"
-              placeholder="your.email@example.com"
-              disabled
-            />
-            <p className="text-xs text-gray-500">Email cannot be changed (from registration)</p>
+          {/* Permanent Address Section */}
+          <div className="space-y-4 border-t border-[#2a3942] pt-6">
+            <h3 className="text-lg font-semibold text-[#00a884] flex items-center gap-2">
+              <FaMapMarkerAlt /> Permanent Address
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Country</label>
+                <input
+                  name="perm_country"
+                  value={form.perm_country}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Nepal"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">City</label>
+                <input
+                  name="perm_city"
+                  value={form.perm_city}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Pokhara"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Street</label>
+                <input
+                  name="perm_street"
+                  value={form.perm_street}
+                  onChange={handleChange}
+                  className="w-full bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+                  placeholder="e.g., Lakeside"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}
