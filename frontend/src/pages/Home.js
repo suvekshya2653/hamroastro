@@ -10,10 +10,9 @@ const Home = () => {
       <nav className="bg-black bg-opacity-30 backdrop-blur-sm border-b border-purple-500/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <span className="text-3xl">✨</span>
-              <span className="text-2xl font-bold text-white">Hamro Astro</span>
-            </div>
+            <div className="flex items-center">
+              <img src="/logo.png" alt="Hamro Astro" className="w-12 h-12" />
+          </div>
             <div className="flex space-x-4">
               <button
                 onClick={() => navigate('/login')}

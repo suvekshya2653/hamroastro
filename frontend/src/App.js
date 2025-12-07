@@ -5,7 +5,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Messages from "./pages/Messages";
 import UserProfile from "./pages/UserProfile";
-import CustomerChat from "./pages/CustomerChat";  // ⬅ ADD THIS
+import CustomerChat from "./pages/CustomerChat";  
 
 import 'react-chat-widget/lib/styles.css';
 

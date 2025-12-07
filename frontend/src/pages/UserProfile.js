@@ -118,7 +118,7 @@ export default function UserProfile() {
       localStorage.setItem("user", JSON.stringify(updatedUser));
       
       alert("✅ Profile saved successfully!");
-      navigate("/messages"); // Redirect to messages
+      navigate("/messages"); 
     } catch (error) {
       console.error("Error saving profile:", error);
       alert("❌ Error saving profile: " + (error.response?.data?.message || error.message));
