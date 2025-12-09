@@ -71,19 +71,26 @@ export default function Register() {
 
     try {
       const payload = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        password_confirmation: formData.confirm_password,
-        gender: formData.gender || "male",
-        dob_nep: formData.birthdate || "2000-01-01",
-        birth_time: formData.birthtime || "12:00:00",
-        country: formData.perm_country || formData.temp_country || "Nepal",
-        city: formData.perm_city || formData.temp_city || "Kathmandu",
-        street: formData.perm_street || formData.temp_street || "Street",
-        role: "customer" // FIXED: Added default role
-      };
-
+  name: formData.name.trim(),
+  email: formData.email.trim(),
+  password: formData.password,
+  password_confirmation: formData.confirm_password,
+  gender: formData.gender || "male",
+  dob_nep: formData.birthdate || "2000-01-01",
+  birth_time: formData.birthtime || "12:00:00",
+  
+  // Temporary Address
+  temp_country: formData.temp_country || "Nepal",
+  temp_city: formData.temp_city || "Kathmandu",
+  temp_street: formData.temp_street || "",
+  
+  // Permanent Address
+  perm_country: formData.perm_country || "Nepal",
+  perm_city: formData.perm_city || "Kathmandu",
+  perm_street: formData.perm_street || "",
+  
+  role: "customer"
+};
       console.log("📤 Registering user with payload:", payload);
 
       const res = await API.post("/register", payload);

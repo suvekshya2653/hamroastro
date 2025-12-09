@@ -387,37 +387,43 @@ export default function Messages() {
                 </select>
               </div>
 
-              {/* Customer Information Section */}
-              <div className="bg-[#1c2730] px-4 py-3">
-                {/* Main Info Grid */}
-                <div className="grid grid-cols-4 gap-4 mb-3 text-xs">
-                  <div>
-                    <span className="text-gray-400 block mb-1">लिङ्ग:</span>
-                    <span className="text-gray-200">{selectedUser.gender || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">जन्म मिति:</span>
-                    <span className="text-gray-200">{selectedUser.dob_nep || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">जन्म समय:</span>
-                    <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
-                    <span className="text-gray-200">{selectedUser.perm_address || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
-                    <span className="text-gray-200">{selectedUser.temp_address || "N/A"}</span>
-                  </div>
-                  
-              
-                </div>
-              </div>
-            </div>
-
+             {/* Customer Information Section */}
+<div className="bg-[#1c2730] px-4 py-3">
+  {/* Main Info Grid */}
+  <div className="grid grid-cols-4 gap-4 mb-3 text-xs">
+    <div>
+      <span className="text-gray-400 block mb-1">लिङ्ग:</span>
+      <span className="text-gray-200">{selectedUser.gender || "N/A"}</span>
+    </div>
+    <div>
+      <span className="text-gray-400 block mb-1">जन्म मिति:</span>
+      <span className="text-gray-200">{selectedUser.dob_nep || "N/A"}</span>
+    </div>
+    <div>
+      <span className="text-gray-400 block mb-1">जन्म समय:</span>
+      <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
+    </div>
+    <div>
+      <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
+      <span className="text-gray-200">
+        {[selectedUser.perm_street, selectedUser.perm_city, selectedUser.perm_country]
+          .filter(Boolean)
+          .join(', ') || "N/A"}
+      </span>
+    </div>
+  </div>
+  
+  <div className="text-xs">
+    <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
+    <span className="text-gray-200">
+      {[selectedUser.temp_street, selectedUser.temp_city, selectedUser.temp_country]
+        .filter(Boolean)
+        .join(', ') || "N/A"}
+    </span>
+  </div>
+</div>
+             
+         </div>
             {/* Messages Display Area */}
             <div
               className="flex-1 overflow-y-auto p-4 space-y-2"
