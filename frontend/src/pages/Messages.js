@@ -403,10 +403,7 @@ export default function Messages() {
                     <span className="text-gray-400 block mb-1">जन्म समय:</span>
                     <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">जन्म स्थान:</span>
-                    <span className="text-gray-200">{selectedUser.birth_place || "N/A"}</span>
-                  </div>
+              
                 </div>
 
                 {/* Address Info Grid */}
@@ -419,6 +416,7 @@ export default function Messages() {
                     <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
                     <span className="text-gray-200">{selectedUser.temp_address || "N/A"}</span>
                   </div>
+                  
                 </div>
               </div>
             </div>
