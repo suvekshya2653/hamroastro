@@ -271,11 +271,24 @@ export default function Messages() {
   };
 
   return (
-    <div className="flex h-screen bg-[#111b21]">
+    // <div className="flex h-screen bg-[#111b21]">
+    <div className="flex h-screen bg-[#111b21] overflow-hidden">
       {/* LEFT SIDEBAR - Customer List */}
-      <div className="w-full md:w-[400px] border-r border-[#2a3942] flex flex-col bg-[#111b21]">
+      {/* <div className="w-full md:w-[400px] border-r border-[#2a3942] flex flex-col bg-[#111b21]"> */}
+      <div className={`
+         ${selectedUser ? 'hidden md:flex' : 'flex'} 
+          w-full md:w-[350px] lg:w-[400px]
+          border-r border-[#2a3942] 
+          flex-col bg-[#111b21]
+          transition-all duration-300
+      `}>
+
+
         {/* Admin Header */}
-        <div className="bg-[#202c33] p-4 flex items-center justify-between">
+        {/* <div className="bg-[#202c33] p-4 flex items-center justify-between"> */}
+
+        <div className="bg-[#202c33] p-4 flex items-center justify-between flex-shrink-0">
+
           <div className="flex items-center gap-3">
             {currentUser && (
               <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
@@ -294,7 +307,9 @@ export default function Messages() {
         </div>
 
         {/* Search Bar */}
-        <div className="p-3 bg-[#111b21]">
+        {/* <div className="p-3 bg-[#111b21]"> */}
+
+        <div className="p-3 bg-[#111b21] flex-shrink-0">
           <div className="relative">
             <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
             <input
@@ -327,7 +342,9 @@ export default function Messages() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
                     <h4 className="font-medium text-white truncate">{user.name}</h4>
-                    <span className="text-xs text-gray-500 ml-2">
+                    {/* <span className="text-xs text-gray-500 ml-2"> */}
+
+                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
                       {formatTime(user.last_message?.created_at)}
                     </span>
                   </div>
@@ -338,7 +355,9 @@ export default function Messages() {
                     </p>
 
                     {user.unread_count > 0 && (
-                      <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2">
+                      // <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2">
+
+                      <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2 flex-shrink-0">
                         {user.unread_count}
                       </span>
                     )}
@@ -350,8 +369,20 @@ export default function Messages() {
         </div>
       </div>
 
+
+
+
+
+
+
+
+
+
+
       {/* RIGHT SIDE - Chat Area */}
-      <div className="flex-1 flex flex-col bg-[#0b141a]">
+      {/* <div className="flex-1 flex flex-col bg-[#0b141a]"> */}
+      {/* RIGHT SIDE - Chat Area */}
+      <div className="flex-1 flex flex-col bg-[#0b141a] min-w-0">
         {selectedUser ? (
           <>
             {/* Customer Details Header */}
