@@ -46,7 +46,6 @@ export default function Messages() {
   // Fetch all customers
   useEffect(() => {
     if (!currentUser) return;
-
     const fetchChatUsers = async () => {
       try {
         const res = await API.get("/chat-users");
@@ -214,7 +213,6 @@ const fetchMessages = async (userId) => {
 
 
 
-
   // Send message to customer - FIXED: Proper payload and broadcast
 const handleSendMessage = async () => {
   if (!newMessage.trim() || !selectedUser || !currentUser) {
@@ -256,6 +254,17 @@ const handleSendMessage = async () => {
     setMessages((prev) =>
       prev.map((msg) => (msg.id === tempId ? sentMessage : msg))
     );
+
+
+
+
+
+
+
+
+
+
+
 
     // Update chat list
     setChatUsers((prevUsers) => {
@@ -416,16 +425,6 @@ const handleSendMessage = async () => {
         </div>
       </div>
 
-
-
-
-
-
-
-
-
-
-
       
       {/* RIGHT SIDE - Chat Area */}
       <div className="flex-1 flex flex-col bg-[#0b141a] min-w-0">
@@ -528,26 +527,20 @@ const handleSendMessage = async () => {
     </div>
   ) : (
 
+    messages.map((msg, index) => {
+    
+    const isAdminMessage = msg.user_id === 17;
+    
+
+    console.log(`Message: "${msg.text?.substring(0, 30)}" | user_id: ${msg.user_id} | isAdminMessage: ${isAdminMessage}`);  
+    // ✅ Determine background color based on sender and type
+    
 
 
 
 
-
-
-messages.map((msg, index) => {
-  // ✅ FIXED: Simple check - is this message FROM the admin?
-const isAdminMessage = msg.user_id === currentUser?.id || msg.user_id === 1;
-
-console.log(`Message: "${msg.text?.substring(0, 30)}" | user_id: ${msg.user_id} | isAdminMessage: ${isAdminMessage}`);
-
-
-
-
-  
-  
-  // ✅ Determine background color based on sender and type
       let messageColor;
-      
+
       if (isAdminMessage) {
         // Admin's own messages appear on RIGHT side
         if (msg.message_type === "answer") {
@@ -621,32 +614,9 @@ console.log(`Message: "${msg.text?.substring(0, 30)}" | user_id: ${msg.user_id} 
       );
     })
   )}
-
-
-
-
-
-
-
   
   <div ref={messagesEndRef} />
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
            {/* Message Type Toggle + Input Box */}
         <div className="bg-[#202c33]">
