@@ -15,46 +15,46 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validatedData = $request->validate([
-        'name'           => 'required|string|max:255',
-        'email'          => 'required|email|unique:users,email',
-        'password'       => 'required|min:6',
-        'gender'         => 'required|string',
-        'dob'            => 'nullable|date',
-        'dob_nep'        => 'nullable|string',
-        'birth_time'     => 'nullable|string',
-        'birth_place'    => 'nullable|string',
-        'birth_city'     => 'nullable|string',
-        'birth_country'  => 'nullable|string',
-        'temp_country'   => 'nullable|string',
-        'temp_city'      => 'nullable|string',
-        'temp_street'    => 'nullable|string',
-        'temp_address'   => 'nullable|string',
-        'perm_country'   => 'nullable|string',
-        'perm_city'      => 'nullable|string',
-        'perm_street'    => 'nullable|string',
-        'perm_address'   => 'nullable|string',
+            'name'           => 'required|string|max:255',
+            'email'          => 'required|email|unique:users,email',
+            'password'       => 'required|min:6',
+            'gender'         => 'required|string',
+            'dob'            => 'nullable|date',
+            'dob_nep'        => 'nullable|string',
+            'birth_time'     => 'nullable|string',
+            'birth_place'    => 'nullable|string',
+            'birth_city'     => 'nullable|string',
+            'birth_country'  => 'nullable|string',
+            'temp_country'   => 'nullable|string',
+            'temp_city'      => 'nullable|string',
+            'temp_street'    => 'nullable|string',
+            'temp_address'   => 'nullable|string',
+            'perm_country'   => 'nullable|string',
+            'perm_city'      => 'nullable|string',
+            'perm_street'    => 'nullable|string',
+            'perm_address'   => 'nullable|string',
         ]);
 
         $user = User::create([
-               'name'           => $validatedData['name'],
-        'email'          => $validatedData['email'],
-        'password'       => Hash::make($validatedData['password']),
-        'gender'         => $validatedData['gender'],
-        'dob'            => $validatedData['dob'] ?? null,
-        'dob_nep'        => $validatedData['dob_nep'] ?? null,
-        'birth_time'     => $validatedData['birth_time'] ?? null,
-        'birth_place'    => $validatedData['birth_place'] ?? null,
-        'birth_city'     => $validatedData['birth_city'] ?? null,
-        'birth_country'  => $validatedData['birth_country'] ?? null,
-        'temp_country'   => $validatedData['temp_country'] ?? null,
-        'temp_city'      => $validatedData['temp_city'] ?? null,
-        'temp_street'    => $validatedData['temp_street'] ?? null,
-        'temp_address'   => $validatedData['temp_address'] ?? null,
-        'perm_country'   => $validatedData['perm_country'] ?? null,
-        'perm_city'      => $validatedData['perm_city'] ?? null,
-        'perm_street'    => $validatedData['perm_street'] ?? null,
-        'perm_address'   => $validatedData['perm_address'] ?? null,
-        'role'           => 'customer',
+            'name'           => $validatedData['name'],
+            'email'          => $validatedData['email'],
+            'password'       => Hash::make($validatedData['password']),
+            'gender'         => $validatedData['gender'],
+            'dob'            => $validatedData['dob'] ?? null,
+            'dob_nep'        => $validatedData['dob_nep'] ?? null,
+            'birth_time'     => $validatedData['birth_time'] ?? null,
+            'birth_place'    => $validatedData['birth_place'] ?? null,
+            'birth_city'     => $validatedData['birth_city'] ?? null,
+            'birth_country'  => $validatedData['birth_country'] ?? null,
+            'temp_country'   => $validatedData['temp_country'] ?? null,
+            'temp_city'      => $validatedData['temp_city'] ?? null,
+            'temp_street'    => $validatedData['temp_street'] ?? null,
+            'temp_address'   => $validatedData['temp_address'] ?? null,
+            'perm_country'   => $validatedData['perm_country'] ?? null,
+            'perm_city'      => $validatedData['perm_city'] ?? null,
+            'perm_street'    => $validatedData['perm_street'] ?? null,
+            'perm_address'   => $validatedData['perm_address'] ?? null,
+            'role'           => 'customer',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -76,7 +76,12 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        Log::info("Login attempt: " . $request->email);
+        // 🔥 DETAILED DEBUG LOGGING
+        Log::info("=== LOGIN ATTEMPT START ===");
+        Log::info("Email received: [{$request->email}]");
+        Log::info("Password received: [{$request->password}]");
+        Log::info("Password length: " . strlen($request->password));
+        Log::info("Email length: " . strlen($request->email));
 
         // -----------------------------------------
         // ⭐ HARDCODED ADMIN LOGIN
@@ -112,7 +117,7 @@ class AuthController extends Controller
                     'name' => $admin->name,
                     'email' => $admin->email,
                     'gender' => $admin->gender,
-                    'role' => 'admin',   // ← FIX
+                    'role' => 'admin',
                 ],
             ], 200);
         }
@@ -122,10 +127,24 @@ class AuthController extends Controller
         // -----------------------------------------
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            Log::warning("Login failed for: " . $request->email);
+        if (!$user) {
+            Log::error("❌ User not found in database: {$request->email}");
             return response()->json(['message' => 'Invalid login credentials'], 401);
         }
+
+        Log::info("✅ User found - ID: {$user->id}, Email: {$user->email}, Role: {$user->role}");
+        Log::info("Stored password hash: {$user->password}");
+
+        // Test password
+        $passwordMatches = Hash::check($request->password, $user->password);
+        Log::info("Password check result: " . ($passwordMatches ? 'TRUE ✅' : 'FALSE ❌'));
+
+        if (!$passwordMatches) {
+            Log::warning("❌ Password mismatch for user: {$request->email}");
+            return response()->json(['message' => 'Invalid login credentials'], 401);
+        }
+
+        Log::info("✅ Login successful for: {$request->email}");
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -137,7 +156,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'gender' => $user->gender,
-                'role' => $user->role ?? 'customer',   // ← FIX
+                'role' => $user->role ?? 'customer',
             ],
         ]);
     }

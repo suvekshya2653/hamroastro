@@ -4,10 +4,11 @@ import API from "../api";
 import echo from "../echo";
 import { FaSearch, FaPaperPlane, FaEllipsisV, FaArrowLeft, FaCheckDouble } from "react-icons/fa";
 
+
 export default function Messages() {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
-  
+  const [messageType, setMessageType] = useState("normal");
   const [chatUsers, setChatUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -72,101 +73,132 @@ export default function Messages() {
     fetchChatUsers();
   }, [currentUser, navigate]);
 
-  // Real-time listener for incoming messages
+
+
+
+
+
+ 
+  // Real-time listener - FIXED: Listen to customer's channel
   useEffect(() => {
-    if (!currentUser) return;
+  if (!currentUser || !selectedUser) return;
 
-    const channelName = `chat.${currentUser.id}`;
-    console.log("🔌 Admin connecting to channel:", channelName);
+  // ✅ FIX: Listen to the CUSTOMER'S channel, not admin's
+  const channelName = `chat.${selectedUser.id}`;
+  console.log("🔌 Admin listening to customer channel:", channelName);
+  
+  const channel = echo.private(channelName);
+
+  channel.subscribed(() => {
+    console.log("✅ Admin subscribed to customer's channel!");
+  });
+
+  channel.error((error) => {
+    console.error("❌ Admin subscription error:", error);
+  });
+
+
+
+
+  const handleIncomingMessage = (data) => {
+    console.log("📩 Admin received message:", data);
+    console.log("📩 receiver_id:", data.receiver_id, "| selectedUser.id:", selectedUser.id);
+
+    // ✅ FIX: Accept messages in this conversation
+    // Either: TO admin (customer sent it) OR TO customer (admin sent it)
+    const isRelevantToThisChat = 
+      (data.receiver_id === 1) || // TO admin (from customer)
+      (data.receiver_id === selectedUser.id); // TO customer (from admin)
     
-    const channel = echo.private(channelName);
-
-    channel.subscribed(() => {
-      console.log("✅ Admin subscribed to real-time channel!");
-    });
-
-    channel.error((error) => {
-      console.error("❌ Admin subscription error:", error);
-    });
-
-    const handleIncomingMessage = (data) => {
-      console.log("📩 Admin received message:", data);
-
-      // Check if message is for admin
-      const isForMe = data.receiver_id === currentUser.id;
-      
-      if (!isForMe) {
-        console.log("⚠️ Message not for admin");
-        return;
-      }
-
-      // Add to chat if this customer is currently selected
-      if (selectedUser && data.user_id === selectedUser.id) {
-        setMessages((prev) => {
-          const exists = prev.some((m) => m.id === data.id);
-          if (exists) {
-            console.log("⚠️ Message already exists in chat");
-            return prev;
-          }
-          
-          console.log("✅ Adding customer message to chat view");
-          return [...prev, data];
-        });
-      }
-
-      // Update chat list with new message
-      setChatUsers((prevUsers) => {
-        const updated = prevUsers.map((user) => {
-          if (user.id === data.user_id) {
-            return {
-              ...user,
-              last_message: data,
-              unread_count: selectedUser?.id === user.id ? 0 : (user.unread_count || 0) + 1,
-            };
-          }
-          return user;
-        });
-        
-        // Sort by latest message
-        return updated.sort((a, b) => {
-          const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
-          const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
-          return dateB - dateA;
-        });
-      });
-    };
-
-    channel.listen("MessageSent", handleIncomingMessage);
-
-    return () => {
-      console.log("🔌 Admin disconnecting from real-time");
-      channel.stopListening("MessageSent", handleIncomingMessage);
-      echo.leave(channelName);
-    };
-  }, [currentUser, selectedUser]);
-
-  // Fetch messages for selected user
-  const fetchMessages = async (userId) => {
-    setLoading(true);
-    try {
-      console.log("📜 Fetching messages for user ID:", userId);
-      const response = await API.get(`/messages?receiver_id=${userId}`);
-      console.log("📜 Loaded", response.data.length, "messages");
-      setMessages(response.data || []);
-      
-      // Mark messages as read
-      setChatUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId ? { ...user, unread_count: 0 } : user
-        )
-      );
-    } catch (error) {
-      console.error("❌ Error fetching messages:", error);
-      alert("Failed to load messages. Please refresh.");
-    } finally {
-      setLoading(false);
+    if (!isRelevantToThisChat) {
+      console.log("⚠️ Message not relevant to this chat");
+      return;
     }
+
+
+
+
+    // Add to chat
+    setMessages((prev) => {
+      const exists = prev.some((m) => m.id === data.id);
+      if (exists) {
+        console.log("⚠️ Message already exists in chat");
+        return prev;
+      }
+      
+      console.log("✅ Adding customer message to chat view");
+      return [...prev, data];
+    });
+
+    // Update chat list with new message
+    setChatUsers((prevUsers) => {
+      const updated = prevUsers.map((user) => {
+        if (user.id === selectedUser.id) {
+          return {
+            ...user,
+            last_message: data,
+            unread_count: 0, // Reset since we're viewing the chat
+          };
+        }
+        return user;
+      });
+      
+      return updated.sort((a, b) => {
+        const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
+        const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
+        return dateB - dateA;
+      });
+    });
   };
+
+  channel.listen("MessageSent", handleIncomingMessage);
+
+  return () => {
+    console.log("🔌 Admin disconnecting from customer channel");
+    channel.stopListening("MessageSent", handleIncomingMessage);
+    echo.leave(channelName);
+  };
+}, [currentUser, selectedUser]);
+
+
+
+
+
+
+
+  // Fetch messages for selected user - FIXED: Correct API call
+const fetchMessages = async (userId) => {
+  setLoading(true);
+  try {
+    console.log("📜 Fetching messages with user ID:", userId);
+    // ✅ FIX: Get conversation between admin and this user
+    const response = await API.get(`/messages`, {
+      params: {
+        user_id: userId
+      }
+    });
+    console.log("📜 Loaded", response.data.length, "messages");
+    setMessages(response.data || []);
+    
+    // Mark messages as read
+    setChatUsers((prev) =>
+      prev.map((user) =>
+        user.id === userId ? { ...user, unread_count: 0 } : user
+      )
+    );
+  } catch (error) {
+    console.error("❌ Error fetching messages:", error);
+    alert("Failed to load messages. Please refresh.");
+  } finally {
+    setLoading(false);
+  }
+};  
+
+
+
+
+
+
 
   // Select a user to chat with
   const handleSelectUser = (user) => {
@@ -176,70 +208,85 @@ export default function Messages() {
     fetchMessages(user.id);
   };
 
-  // Send message to customer
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser || !currentUser) {
-      console.log("⚠️ Cannot send: missing data");
-      return;
-    }
 
-    const messageText = newMessage.trim();
-    const tempId = `temp-${Date.now()}`;
-    
-    // Optimistic update - show message immediately
-    const optimisticMessage = {
-      id: tempId,
-      text: messageText,
-      user_id: currentUser.id,
-      receiver_id: selectedUser.id,
-      created_at: new Date().toISOString(),
-      sender_name: currentUser.name,
-    };
 
-    console.log("📤 Sending message:", messageText);
-    setMessages((prev) => [...prev, optimisticMessage]);
-    setNewMessage("");
 
-    try {
-      const response = await API.post("/messages", {
-        text: messageText,
-        receiver_id: selectedUser.id,
-      });
 
-      const sentMessage = response.data;
-      console.log("✅ Message sent successfully!");
 
-      // Replace temporary message with real one from server
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === tempId ? sentMessage : msg))
-      );
 
-      // Update chat list
-      setChatUsers((prevUsers) => {
-        const updated = prevUsers.map((user) => {
-          if (user.id === selectedUser.id) {
-            return { ...user, last_message: sentMessage };
-          }
-          return user;
-        });
-        
-        return updated.sort((a, b) => {
-          const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
-          const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
-          return dateB - dateA;
-        });
-      });
-    } catch (error) {
-      console.error("❌ Error sending message:", error);
-      console.error("Error details:", error.response?.data);
-      
-      // Remove failed message
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
-      setNewMessage(messageText);
-      
-      alert("Failed to send message. Please try again.");
-    }
+
+  // Send message to customer - FIXED: Proper payload and broadcast
+const handleSendMessage = async () => {
+  if (!newMessage.trim() || !selectedUser || !currentUser) {
+    console.log("⚠️ Cannot send: missing data");
+    return;
+  }
+
+  const messageText = newMessage.trim();
+  const tempId = `temp-${Date.now()}`;
+  
+  // Optimistic update
+  const optimisticMessage = {
+    id: tempId,
+    text: messageText,
+    user_id: currentUser.id,
+    receiver_id: selectedUser.id,
+    created_at: new Date().toISOString(),
+    sender_name: currentUser.name,
+    message_type: messageType, 
   };
+
+  console.log("📤 Admin sending message to customer:", messageText);
+  setMessages((prev) => [...prev, optimisticMessage]);
+  setNewMessage("");
+  setMessageType("normal"); 
+
+  try {
+    // ✅ FIX: Send correct payload
+    const response = await API.post("/messages", {
+      text: messageText,
+      receiver_id: selectedUser.id,
+      message_type: messageType, 
+    });
+
+    const sentMessage = response.data;
+    console.log("✅ Admin message sent successfully!");
+
+    // Replace temporary message with real one
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === tempId ? sentMessage : msg))
+    );
+
+    // Update chat list
+    setChatUsers((prevUsers) => {
+      const updated = prevUsers.map((user) => {
+        if (user.id === selectedUser.id) {
+          return { ...user, last_message: sentMessage };
+        }
+        return user;
+      });
+      
+      return updated.sort((a, b) => {
+        const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
+        const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
+        return dateB - dateA;
+      });
+    });
+
+    // ✅ Backend should broadcast to customer's channel automatically
+    console.log("✅ Message broadcast to customer's channel via backend");
+    
+  } catch (error) {
+    console.error("❌ Error sending admin message:", error);
+    console.error("Error details:", error.response?.data);
+    
+    // Remove failed message
+    setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    setNewMessage(messageText);
+    
+    alert("Failed to send message. Please try again.");
+  }
+};
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -379,8 +426,7 @@ export default function Messages() {
 
 
 
-      {/* RIGHT SIDE - Chat Area */}
-      {/* <div className="flex-1 flex flex-col bg-[#0b141a]"> */}
+      
       {/* RIGHT SIDE - Chat Area */}
       <div className="flex-1 flex flex-col bg-[#0b141a] min-w-0">
         {selectedUser ? (
@@ -419,137 +465,247 @@ export default function Messages() {
               </div>
 
              {/* Customer Information Section */}
-<div className="bg-[#1c2730] px-4 py-3">
-  {/* Main Info Grid */}
-  <div className="grid grid-cols-4 gap-4 mb-3 text-xs">
-    <div>
-      <span className="text-gray-400 block mb-1">लिङ्ग:</span>
-      <span className="text-gray-200">{selectedUser.gender || "N/A"}</span>
-    </div>
-    <div>
-      <span className="text-gray-400 block mb-1">जन्म मिति:</span>
-      <span className="text-gray-200">{selectedUser.dob_nep || "N/A"}</span>
-    </div>
-    <div>
-      <span className="text-gray-400 block mb-1">जन्म समय:</span>
-      <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
-    </div>
-    <div>
-      <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
-      <span className="text-gray-200">
-        {[selectedUser.perm_street, selectedUser.perm_city, selectedUser.perm_country]
-          .filter(Boolean)
-          .join(', ') || "N/A"}
-      </span>
-    </div>
-  </div>
-  
-  <div className="text-xs">
-    <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
-    <span className="text-gray-200">
-      {[selectedUser.temp_street, selectedUser.temp_city, selectedUser.temp_country]
-        .filter(Boolean)
-        .join(', ') || "N/A"}
-    </span>
-  </div>
-</div>
+          <div className="bg-[#1c2730] px-4 py-3">
+            {/* Main Info Grid */}
+            <div className="grid grid-cols-4 gap-4 mb-3 text-xs">
+              <div>
+                <span className="text-gray-400 block mb-1">लिङ्ग:</span>
+                <span className="text-gray-200">{selectedUser.gender || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block mb-1">जन्म मिति:</span>
+                <span className="text-gray-200">{selectedUser.dob_nep || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block mb-1">जन्म समय:</span>
+                <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
+                <span className="text-gray-200">
+                  {[selectedUser.perm_street, selectedUser.perm_city, selectedUser.perm_country]
+                    .filter(Boolean)
+                    .join(', ') || "N/A"}
+                </span>
+              </div>
+            </div>
+            
+            <div className="text-xs">
+              <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
+              <span className="text-gray-200">
+                {[selectedUser.temp_street, selectedUser.temp_city, selectedUser.temp_country]
+                  .filter(Boolean)
+                  .join(', ') || "N/A"}
+              </span>
+            </div>
+          </div>
+          </div>
              
-         </div>
-            {/* Messages Display Area */}
-            <div
-              className="flex-1 overflow-y-auto p-4 space-y-2"
-              style={{
-                backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
-                backgroundSize: "cover",
-              }}
-            >
-              {loading ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex justify-center items-center h-full">
-                  <p className="text-gray-400">No messages yet. Start the conversation!</p>
-                </div>
-              ) : (
-                messages.map((msg, index) => {
-                  const isAdminMessage = msg.user_id === currentUser?.id;
-                  
-                  // Determine message background color based on payment status
-                  let messageColor = "bg-[#202c33]"; // Default
-                  
-                  if (isAdminMessage) {
-                    messageColor = "bg-[#005c4b]"; // Admin = Green
-                  } else {
-                    // Customer messages
-                    if (msg.is_paid && msg.payment_status === 'paid') {
-                      messageColor = "bg-[#1e3a5f]"; // Paid = Blue
-                    } else if (msg.is_paid && msg.payment_status === 'pending') {
-                      messageColor = "bg-[#4a3520]"; // Pending = Orange
-                    } else {
-                      messageColor = "bg-[#202c33]"; // Free = Gray
-                    }
-                  }
-                  
-                  return (
-                    <div
-                      key={msg.id || `msg-${index}`}
-                      className={`flex ${isAdminMessage ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[65%] rounded-md px-3 py-2 shadow-sm ${messageColor} text-white relative`}
-                        style={{
-                          borderRadius: isAdminMessage ? "8px 8px 0px 8px" : "8px 8px 8px 0px"
-                        }}
-                      >
-                        <p className="break-words text-[14.2px] leading-[19px]">{msg.text}</p>
 
-                        {/* Payment Badge (for customer paid messages) */}
-                        {!isAdminMessage && msg.is_paid && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className={`text-[10px] px-2 py-0.5 rounded ${
-                              msg.payment_status === 'paid' ? 'bg-blue-600' : 'bg-orange-600'
-                            }`}>
-                              {msg.payment_status === 'paid' ? '💳 Paid' : '⏳ Pending'}
-                            </span>
-                          </div>
-                        )}
 
-                        {/* Time and Read Receipt */}
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className="text-[11px] text-gray-300 opacity-70">
-                            {formatTime(msg.created_at)}
-                          </span>
-                          {isAdminMessage && (
-                            <FaCheckDouble className="text-[11px] text-blue-400" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+
+
+
+
+
+
+
+{/* Messages Display Area */}
+<div
+  className="flex-1 overflow-y-auto p-4 space-y-2"
+  style={{
+    backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+    backgroundSize: "cover",
+  }}
+>
+  {loading ? (
+    <div className="flex justify-center items-center h-full">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+    </div>
+  ) : messages.length === 0 ? (
+    <div className="flex justify-center items-center h-full">
+      <p className="text-gray-400">No messages yet. Start the conversation!</p>
+    </div>
+  ) : (
+
+
+
+
+
+
+
+messages.map((msg, index) => {
+  // ✅ FIXED: Simple check - is this message FROM the admin?
+const isAdminMessage = msg.user_id === currentUser?.id || msg.user_id === 1;
+
+console.log(`Message: "${msg.text?.substring(0, 30)}" | user_id: ${msg.user_id} | isAdminMessage: ${isAdminMessage}`);
+
+
+
+
+  
+  
+  // ✅ Determine background color based on sender and type
+      let messageColor;
+      
+      if (isAdminMessage) {
+        // Admin's own messages appear on RIGHT side
+        if (msg.message_type === "answer") {
+          messageColor = "bg-[#7c3aed]"; // Purple for Original Answer
+        } else {
+          messageColor = "bg-[#005c4b]"; // Green for normal messages
+        }
+      } else {
+        // Customer messages appear on LEFT side
+        if (msg.message_type === "question") {
+          messageColor = "bg-[#1e3a5f]"; // Blue for paid questions
+        } else {
+          messageColor = "bg-[#202c33]"; // Gray for normal customer messages
+        }
+      }
+      
+
+
+
+
+
+
+      return (
+        <div
+          key={msg.id || `msg-${index}`}
+          className={`flex ${isAdminMessage ? "justify-end" : "justify-start"}`}
+        >
+          <div
+            className={`max-w-[65%] rounded-md px-3 py-2 shadow-sm ${messageColor} text-white relative`}
+            style={{
+              borderRadius: isAdminMessage ? "8px 8px 0px 8px" : "8px 8px 8px 0px"
+            }}
+          >
+            {/* Labels for special message types */}
+            {isAdminMessage && msg.message_type === "answer" && (
+              <div className="text-xs text-purple-300 mb-1 font-semibold">
+                ⭐ Original Answer
+              </div>
+            )}
+            
+            {!isAdminMessage && msg.message_type === "question" && (
+              <div className="text-xs text-yellow-300 mb-1 font-semibold">
+                💰 Paid Question
+              </div>
+            )}
+            
+            <p className="break-words text-[14.2px] leading-[19px]">{msg.text}</p>
+
+            {/* Payment Badge (shows payment status) */}
+            {!isAdminMessage && msg.is_paid && msg.payment_status && (
+              <div className="flex items-center gap-1 mt-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                  msg.payment_status === 'paid' ? 'bg-blue-600' : 'bg-orange-600'
+                }`}>
+                  {msg.payment_status === 'paid' ? '💳 Paid' : '⏳ Pending'}
+                </span>
+              </div>
+            )}
+
+            {/* Time and Read Receipt */}
+            <div className="flex items-center justify-end gap-1 mt-1">
+              <span className="text-[11px] text-gray-300 opacity-70">
+                {formatTime(msg.created_at)}
+              </span>
+              {isAdminMessage && (
+                <FaCheckDouble className="text-[11px] text-blue-400" />
               )}
-              <div ref={messagesEndRef} />
             </div>
+          </div>
+        </div>
+      );
+    })
+  )}
 
-            {/* Message Input Box */}
-            <div className="bg-[#202c33] p-3 flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Type a message to customer..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="flex-1 bg-[#2a3942] text-white rounded-lg px-4 py-3 focus:outline-none placeholder-gray-500"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                className="bg-[#00a884] hover:bg-[#06cf9c] text-white rounded-full p-3 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FaPaperPlane />
-              </button>
-            </div>
+
+
+
+
+
+
+  
+  <div ref={messagesEndRef} />
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+           {/* Message Type Toggle + Input Box */}
+        <div className="bg-[#202c33]">
+          {/* Toggle Buttons */}
+          <div className="flex border-b border-[#2a3942] p-2 gap-2">
+            <button
+              onClick={() => setMessageType("normal")}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                messageType === "normal"
+                  ? "bg-[#00a884] text-white"
+                  : "bg-[#2a3942] text-gray-400 hover:bg-[#374952]"
+              }`}
+            >
+              💬 Normal Conversation
+            </button>
+            <button
+              onClick={() => setMessageType("answer")}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                messageType === "answer"
+                  ? "bg-[#8b5cf6] text-white"
+                  : "bg-[#2a3942] text-gray-400 hover:bg-[#374952]"
+              }`}
+            >
+              ⭐ Original Answer
+            </button>
+          </div>
+
+
+
+          {/* Message Input */}
+          <div className="p-3 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder={messageType === "answer" ? "Type your answer..." : "Type a message to customer..."}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className={`flex-1 rounded-lg px-4 py-3 focus:outline-none placeholder-gray-500 text-white ${
+                messageType === "answer" 
+                  ? "bg-[#4c1d95] border-2 border-[#8b5cf6]" 
+                  : "bg-[#2a3942]"
+              }`}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim()}
+              className={`rounded-full p-3 transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                messageType === "answer"
+                  ? "bg-[#8b5cf6] hover:bg-[#7c3aed]"
+                  : "bg-[#00a884] hover:bg-[#06cf9c]"
+              } text-white`}
+            >
+              <FaPaperPlane />
+            </button>
+          </div>
+        </div>
+
+
+
           </>
         ) : (
           /* No Customer Selected View */

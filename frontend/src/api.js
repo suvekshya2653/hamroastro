@@ -14,8 +14,7 @@ const API = axios.create({
 });
 
 // ----------------------------------------------------
-// 🛡 GET CSRF COOKIE - Only needed for cookie-based auth
-// For token-based auth with Sanctum, this is optional
+// 🛡 GET CSRF COOKIE - Optional for token-based auth
 // ----------------------------------------------------
 export const getCsrfCookie = async () => {
   try {
@@ -28,18 +27,27 @@ export const getCsrfCookie = async () => {
 };
 
 // ----------------------------------------------------
-// 👥 Chat Users (DO NOT TOUCH — You Said Keep It Same)
+// 👥 Chat Users
 // ----------------------------------------------------
 export const getChatUsers = () => API.get("/chat-users");
 
 // ----------------------------------------------------
-// 🔐 Attach Token to Every Request
-// NOTE: Changed to sessionStorage so each tab has its own token
+// 🔐 Load token from localStorage on app initialization
+// ✅ FIX: Set token in API headers on app start
+// ----------------------------------------------------
+const token = localStorage.getItem("token");
+if (token) {
+  API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  console.log("✅ Token loaded from localStorage");
+}
+
+// ----------------------------------------------------
+// 🔐 Attach Token to Every Request (Interceptor)
+// ✅ FIX: Only use localStorage for consistency
 // ----------------------------------------------------
 API.interceptors.request.use(
   (config) => {
-    // Try sessionStorage first, fallback to localStorage
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -52,20 +60,43 @@ API.interceptors.request.use(
 
 // ----------------------------------------------------
 // ⚠ Handle 401 (Token Expired / Invalid)
+// ✅ FIX: Clear everything and redirect to login
 // ----------------------------------------------------
 API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
+      console.log("❌ 401 Unauthorized - Clearing session");
+      
+      // Clear all auth data
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      // Optionally redirect to login
-      // window.location.href = '/login';
+      localStorage.removeItem("role");
+      delete API.defaults.headers.common['Authorization'];
+      
+      // Redirect to login (prevent infinite loop)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
+
+// ----------------------------------------------------
+// 🔧 Helper function to set token manually
+// ✅ FIX: Export this for Login/Register to use
+// ----------------------------------------------------
+export const setAuthToken = (token) => {
+  if (token) {
+    API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    localStorage.setItem("token", token);
+    console.log("✅ Auth token set in API headers");
+  } else {
+    delete API.defaults.headers.common['Authorization'];
+    localStorage.removeItem("token");
+    console.log("🗑️ Auth token removed from API headers");
+  }
+};
 
 export default API;

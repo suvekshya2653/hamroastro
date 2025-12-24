@@ -2,50 +2,52 @@
 
 namespace App\Events;
 
-use App\Models\Message;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+use App\Models\Message;
 
 class MessageSent implements ShouldBroadcast
 {
-    use InteractsWithSockets, SerializesModels;
+    use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $message;
 
     public function __construct(Message $message)
     {
-        $this->message = $message->load('user');
+        $this->message = $message->load('user:id,name'); // ✅ Load sender info
     }
 
-    // 🔥 FIXED: Changed from PrivateChannel to public Channel
-public function broadcastOn(): array
-{
-    // CORRECT: Uses the receiver's ID to define the private channel (e.g., 'chat.5')
-    return [
-        new PrivateChannel('chat.' . $this->message->receiver_id),
-    ];
-}
-    public function broadcastAs()
+    /**
+     * ✅ CRITICAL: Broadcast to RECEIVER's channel, not sender's
+     */
+    public function broadcastOn()
     {
-        return 'MessageSent';
+        // ✅ Send to the person RECEIVING the message
+        return new PrivateChannel('chat.' . $this->message->receiver_id);
     }
 
+    /**
+     * Data sent to the frontend
+     */
     public function broadcastWith()
     {
         return [
             'id' => $this->message->id,
             'text' => $this->message->text,
             'user_id' => $this->message->user_id,
-            'sender_id' => $this->message->user_id,
             'receiver_id' => $this->message->receiver_id,
-            'sender' => [
-                'id' => $this->message->user->id,
-                'name' => $this->message->user->name,
-            ],
-            'created_at' => $this->message->created_at->toDateTimeString(),
+            'message_type' => $this->message->message_type ?? 'normal', // ✅ ADD THIS
+            'is_paid' => $this->message->is_paid ?? false, // ✅ ADD THIS
+            'payment_status' => $this->message->payment_status, // ✅ ADD THIS
+            'transaction_id' => $this->message->transaction_id, // ✅ ADD THIS
+            'amount' => $this->message->amount, // ✅ ADD THIS
+            'created_at' => $this->message->created_at->toISOString(),
+            'sender_name' => $this->message->user->name ?? 'Unknown', // ✅ ADD THIS
         ];
     }
 }

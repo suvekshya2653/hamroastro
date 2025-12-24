@@ -28,6 +28,7 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -42,102 +43,147 @@ export default function Register() {
   const togglePass = () => setShowPassword(!showPassword);
   const toggleCPass = () => setShowCPassword(!showCPassword);
 
+
+
+
+
+
+
+
+
+
+
+
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSuccess("");
-    setError("");
-    setErrors({});
-    setLoading(true);
+  e.preventDefault();
+  setSuccess("");
+  setError("");
+  setErrors({});
+  setLoading(true);
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirm_password) {
-      setError("Please fill in all required fields");
-      setLoading(false);
-      return;
-    }
+  // ✅ Basic validation
+  if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirm_password) {
+    setError("Please fill in all required fields");
+    setLoading(false);
+    return;
+  }
 
-    if (formData.password !== formData.confirm_password) {
-      setErrors({ confirm_password: "Passwords do not match" });
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
+  // ✅ Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(formData.email.trim())) {
+    setErrors({ email: "Please enter a valid email address" });
+    setError("Please enter a valid email address");
+    setLoading(false);
+    return;
+  }
 
-    if (formData.password.length < 8) {
-      setErrors({ password: "Password must be at least 8 characters" });
-      setError("Password must be at least 8 characters");
-      setLoading(false);
-      return;
-    }
+  // ✅ Password match validation
+  if (formData.password !== formData.confirm_password) {
+    setErrors({ confirm_password: "Passwords do not match" });
+    setError("Passwords do not match");
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const payload = {
-  name: formData.name.trim(),
-  email: formData.email.trim(),
-  password: formData.password,
-  password_confirmation: formData.confirm_password,
-  gender: formData.gender || "male",
-  dob_nep: formData.birthdate || "2000-01-01",
-  birth_time: formData.birthtime || "12:00:00",
-  
-  // Temporary Address
-  temp_country: formData.temp_country || "Nepal",
-  temp_city: formData.temp_city || "Kathmandu",
-  temp_street: formData.temp_street || "",
-  
-  // Permanent Address
-  perm_country: formData.perm_country || "Nepal",
-  perm_city: formData.perm_city || "Kathmandu",
-  perm_street: formData.perm_street || "",
-  
-  role: "customer"
-};
-      console.log("📤 Registering user with payload:", payload);
+  // ✅ Password length validation
+  if (formData.password.length < 8) {
+    setErrors({ password: "Password must be at least 8 characters" });
+    setError("Password must be at least 8 characters");
+    setLoading(false);
+    return;
+  }
 
-      const res = await API.post("/register", payload);
-
-      console.log("✅ Registration response:", res.data);
-
-      if (res.data.success || res.data.token) {
-        const { token, user } = res.data;
-
-        if (token) {
-          localStorage.setItem("token", token);
-          console.log("✅ Token stored successfully");
-        }
-        
-        if (user) {
-          localStorage.setItem("user", JSON.stringify(user));
-          localStorage.setItem("role", user.role || "customer");
-          console.log("✅ User data stored:", user);
-        }
-        
-        setSuccess("Registration successful! Redirecting...");
-        
-        setTimeout(() => {
-          navigate("/customerchat", { replace: true });
-        }, 1500);
-      } else {
-        setError(res.data.message || "Registration failed");
-      }
-    } catch (err) {
-      console.error("❌ Registration error:", err);
-      console.error("❌ Error response:", err.response?.data);
+  try {
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      password_confirmation: formData.confirm_password,
+      gender: formData.gender || "male",
+      dob_nep: formData.birthdate || "2000-01-01",
+      birth_time: formData.birthtime || "12:00:00",
       
-      if (err.response?.status === 422) {
-        const validationErrors = err.response.data.errors || {};
-        setErrors(validationErrors);
-        
-        const firstError = Object.values(validationErrors)[0];
-        setError(Array.isArray(firstError) ? firstError[0] : "Please check the form for errors");
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Registration failed. Please check your connection and try again.");
+      // Temporary Address
+      temp_country: formData.temp_country || "Nepal",
+      temp_city: formData.temp_city || "Kathmandu",
+      temp_street: formData.temp_street || "",
+      
+      // Permanent Address
+      perm_country: formData.perm_country || "Nepal",
+      perm_city: formData.perm_city || "Kathmandu",
+      perm_street: formData.perm_street || "",
+      
+      role: "customer"
+    };
+
+    console.log("📤 Registering user with payload:", payload);
+
+    const res = await API.post("/register", payload);
+
+    console.log("✅ Registration response:", res.data);
+
+    if (res.data.success || res.data.token) {
+      const { token, user } = res.data;
+
+      // ✅ FIX: Set API token for future requests
+      if (token) {
+        API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        localStorage.setItem("token", token);
+        console.log("✅ Token stored and set in API headers");
       }
-    } finally {
+      
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("role", user.role || "customer");
+        console.log("✅ User data stored:", user.email);
+      }
+      
+      setSuccess("Registration successful! Redirecting...");
+      
+      setTimeout(() => {
+        navigate("/customerchat", { replace: true });
+      }, 1500);
+    } else {
+      setError(res.data.message || "Registration failed");
       setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error("❌ Registration error:", err);
+    console.error("❌ Error response:", err.response?.data);
+    
+    // ✅ Better error handling
+    if (err.response?.status === 422) {
+      const validationErrors = err.response.data.errors || {};
+      setErrors(validationErrors);
+      
+      const firstError = Object.values(validationErrors)[0];
+      setError(Array.isArray(firstError) ? firstError[0] : "Please check the form for errors");
+    } else if (err.response?.status === 409) {
+      setError("This email is already registered. Please login instead.");
+    } else if (err.message === "Network Error") {
+      setError("Cannot connect to server. Check your internet connection.");
+    } else if (err.response?.data?.message) {
+      setError(err.response.data.message);
+    } else {
+      setError("Registration failed. Please check your connection and try again.");
+    }
+    
+    setLoading(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">

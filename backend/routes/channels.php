@@ -1,15 +1,34 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 
-/**
- * Authorization for the private chat channel
- * The rule is: A user can only subscribe to the channel that matches their own ID.
- * * @param \App\Models\User $user The authenticated user making the request.
- * @param int $userId The ID extracted from the channel name (e.g., in 'chat.5', $userId is 5).
- */
-Broadcast::channel('chat.{userId}', function ($user, $userId) {
-    // Allows any authenticated user ($user) to subscribe ONLY to the channel that matches their ID ($userId).
-    return (int) $user->id === (int) $userId;
+/*
+|--------------------------------------------------------------------------
+| Broadcast Channels
+|--------------------------------------------------------------------------
+*/
+
+Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
 });
 
+// ✅ Chat channel - Allow user to access their own channel OR admin to access any
+Broadcast::channel('chat.{userId}', function ($user, $userId) {
+    Log::info("🔐 Broadcasting auth check", [
+        'authenticated_user_id' => $user->id,
+        'authenticated_user_role' => $user->role ?? 'customer',
+        'requested_channel_userId' => $userId,
+        'is_own_channel' => (int) $user->id === (int) $userId,
+        'is_admin' => ($user->role ?? '') === 'admin'
+    ]);
+
+    // Allow if:
+    // 1. User is accessing their own channel, OR
+    // 2. User is admin (can access any channel)
+    $allowed = (int) $user->id === (int) $userId || ($user->role ?? '') === 'admin';
+
+    Log::info("🔐 Auth result: " . ($allowed ? "ALLOWED ✅" : "DENIED ❌"));
+
+    return $allowed;
+});

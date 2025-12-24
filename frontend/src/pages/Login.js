@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import API from "../api";
+import { setAuthToken } from "../api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,70 +19,88 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setErrors({});
-  setLoading(true);
+    e.preventDefault();
+    setError("");
+    setErrors({});
+    setLoading(true);
 
-  if (!form.email || !form.password) {
-    setError("Please fill in all fields.");
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const res = await API.post("/login", {
-      email: form.email.trim(),
-      password: form.password,
-    });
-
-    if (!res.data.token || !res.data.user) {
-      setError("Invalid login response");
+    // ✅ Validation
+    if (!form.email || !form.password) {
+      setError("Please fill in all fields.");
       setLoading(false);
       return;
     }
 
-    const { token, user } = res.data;
-
-    console.log("Login:", user);
-
-    // STORE ONLY IN LOCALSTORAGE
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-
-    // ROLE CHECK
-    const isAdmin = user.role && user.role.toLowerCase() === "admin";
-    const role = isAdmin ? "admin" : "customer";
-
-    localStorage.setItem("role", role);
-
-    // REDIRECT
-    if (isAdmin) {
-      navigate("/messages");
-    } else {
-      navigate("/customerchat");
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      setLoading(false);
+      return;
     }
-  } catch (err) {
-    console.error("Login error:", err);
 
-    if (err.response?.status === 422) {
-      setErrors(err.response.data.errors || {});
-      setError("Please check your input.");
-    } else if (err.response?.status === 401) {
-      setError("Invalid email or password.");
-    } else {
-      setError("Login failed. Please try again.");
+    // 🔥 DEBUG: Log what we're sending
+    const loginData = {
+      email: form.email.trim(),
+      password: form.password.trim(), // ← ADDED .trim() to remove whitespace
+    };
+
+    console.log("🔍 LOGIN DEBUG:");
+    console.log("Email:", loginData.email);
+    console.log("Password:", loginData.password);
+    console.log("Password length:", loginData.password.length);
+    console.log("Email length:", loginData.email.length);
+
+    try {
+      const res = await API.post("/login", loginData);
+
+      if (!res.data.token || !res.data.user) {
+        setError("Invalid login response");
+        setLoading(false);
+        return;
+      }
+
+      const { token, user } = res.data;
+
+      console.log("✅ Login successful:", user.email);
+
+      // ✅ Save token and user data
+      setAuthToken(token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // Determine role
+      const role = user.role?.toLowerCase() === "admin" ? "admin" : "customer";
+      localStorage.setItem("role", role);
+
+      console.log("✅ User role:", role);
+
+      // Redirect based on role
+      if (role === "admin") {
+        navigate("/messages");
+      } else {
+        navigate("/customerchat");
+      }
+    } catch (err) {
+      console.error("❌ Login error:", err);
+      console.error("❌ Error response:", err.response?.data);
+
+      // ✅ Better error handling
+      if (err.response?.status === 422) {
+        setErrors(err.response.data.errors || {});
+        setError("Please check your input.");
+      } else if (err.response?.status === 401) {
+        setError("Invalid email or password.");
+      } else if (err.message === "Network Error") {
+        setError("Cannot connect to server. Check your internet connection.");
+      } else {
+        setError(err.response?.data?.message || "Login failed. Please try again.");
+      }
+
+      setLoading(false);
     }
-  }
-
-  setLoading(false);
-};
-
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-700">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-
         <div className="hidden md:flex flex-col justify-center items-center bg-gradient-to-br from-indigo-800 via-purple-800 to-indigo-900 text-white p-10">
           <h1 className="text-5xl font-extrabold mb-4">Welcome Back</h1>
           <p className="text-center opacity-90 max-w-sm text-lg">

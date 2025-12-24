@@ -1,21 +1,19 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
 
-// Make Pusher available globally
 window.Pusher = Pusher;
 
-// Configure Echo
 const echo = new Echo({
     broadcaster: "reverb",
     key: process.env.REACT_APP_REVERB_APP_KEY || "sqja9bn48v14nbqjmts5",
     wsHost: process.env.REACT_APP_REVERB_HOST || "localhost",
-    wsPort: process.env.REACT_APP_REVERB_PORT || 8080,
-    wssPort: process.env.REACT_APP_REVERB_PORT || 8080,
-    forceTLS: false,
+    wsPort: parseInt(process.env.REACT_APP_REVERB_PORT) || 8080,
+    wssPort: parseInt(process.env.REACT_APP_REVERB_PORT) || 8080,
+    forceTLS: (process.env.REACT_APP_REVERB_SCHEME || "http") === "https",
     disableStats: true,
     enabledTransports: ["ws", "wss"],
     
-    authEndpoint: `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/broadcasting/auth`,
+    authEndpoint: `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/api/broadcasting/auth`,
     
     auth: {
         headers: {
@@ -26,7 +24,15 @@ const echo = new Echo({
     authorizer: (channel, options) => {
         return {
             authorize: (socketId, callback) => {
-                const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+                const token = localStorage.getItem("token");
+                
+                if (!token) {
+                    console.error("❌ No token found");
+                    callback(new Error("No auth token"), null);
+                    return;
+                }
+                
+                console.log("🔐 Authenticating channel:", channel.name);
                 
                 fetch(options.authEndpoint, {
                     method: 'POST',
@@ -40,11 +46,19 @@ const echo = new Echo({
                         channel_name: channel.name,
                     }),
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log("📡 Auth status:", response.status);
+                    if (!response.ok) {
+                        throw new Error(`Auth failed: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log("✅ Authenticated!");
                     callback(null, data);
                 })
                 .catch(error => {
+                    console.error("❌ Auth error:", error);
                     callback(error, null);
                 });
             }
@@ -52,29 +66,15 @@ const echo = new Echo({
     },
 });
 
-// Store globally for debugging
 window.Echo = echo;
 
-// Connection event handlers
 echo.connector.pusher.connection.bind("connected", () => {
-    console.log("💚 Reverb WebSocket Connected");
+    console.log("💚 WebSocket Connected");
+    console.log("🆔 Socket ID:", echo.socketId());
 });
 
 echo.connector.pusher.connection.bind("error", (err) => {
-    console.error("❌ Reverb WebSocket Error:", err);
+    console.error("❌ WebSocket Error:", err);
 });
 
-echo.connector.pusher.connection.bind("disconnected", () => {
-    console.warn("⚠️ Reverb WebSocket Disconnected");
-});
-
-echo.connector.pusher.connection.bind("unavailable", () => {
-    console.error("❌ Reverb WebSocket Unavailable");
-});
-
-echo.connector.pusher.connection.bind("failed", () => {
-    console.error("❌ Reverb WebSocket Failed");
-});
-
-// Export the echo instance
 export default echo;

@@ -14,9 +14,9 @@ class Message extends Model
     protected $fillable = [
         'user_id',        // sender (client or admin)
         'receiver_id',    // receiver (admin or client)
-        'text',           // chat message
-        'conversation_id', // thread
-        // ✅ NEW: Payment fields
+        'text',
+        'message_type',
+        'conversation_id',
         'is_paid',
         'transaction_id',
         'payment_status',
@@ -24,7 +24,6 @@ class Message extends Model
         'paid_at',
     ];
 
-    // ✅ NEW: Add this $casts array
     protected $casts = [
         'is_paid' => 'boolean',
         'paid_at' => 'datetime',
