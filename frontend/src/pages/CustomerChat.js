@@ -75,8 +75,9 @@ export default function CustomerChat() {
       });
 
       const formatted = res.data.map((msg) => {
-        // 🔥 NEW LOGIC: receiver_id tells us direction
-        const isSentByMe = msg.receiver_id === 1; // Going TO admin = I sent it
+        
+
+     const isSentByMe = msg.user_id === userId;
         
         console.log(`MSG: "${msg.text.substring(0, 20)}" | receiver_id=${msg.receiver_id} | isSentByMe=${isSentByMe}`);
         
@@ -98,46 +99,81 @@ export default function CustomerChat() {
     }
   };
 
-  useEffect(() => {
-    if (!user) return;
 
-    const channelName = `chat.${user.id}`;
-    const channel = echo.private(channelName);
 
-    channel.listen("MessageSent", (data) => {
-      const isRelevantMessage = 
-        (data.receiver_id === user.id) || 
-        (data.receiver_id === 1);
 
-      if (!isRelevantMessage) return;
 
-      setMessages((prev) => {
-        const exists = prev.some((m) => m.id === data.id);
-        if (exists) return prev;
 
-        const isSentByMe = data.receiver_id === 1;
-        
-        return [
-          ...prev,
-          {
-            id: data.id,
-            text: data.text,
-            sender: isSentByMe ? "customer" : "admin",
-            message_type: data.message_type || "normal",
-            user_id: data.user_id,
-            receiver_id: data.receiver_id,
-            created_at: data.created_at,
-            time: new Date(data.created_at).toLocaleTimeString(),
-          },
-        ];
-      });
+
+
+ useEffect(() => {
+  if (!user) return;
+
+  const channelName = `chat.${user.id}`;
+  console.log("🔌 Customer connecting to channel:", channelName);
+  
+  const channel = echo.private(channelName);
+
+  channel.subscribed(() => {
+    console.log("✅ Customer subscribed successfully!");
+  });
+
+  channel.error((error) => {
+    console.error("❌ Customer subscription error:", error);
+  });
+
+  const handleIncomingMessage = (data) => {
+    console.log("📩 Customer received message:", data);
+    console.log("📩 From user_id:", data.user_id, "| To receiver_id:", data.receiver_id);
+    
+    // ✅ FIX: Check if message is FOR this customer
+    const isForMe = data.receiver_id === user.id;
+
+    if (!isForMe) {
+      console.log("⚠️ Message not for me, ignoring");
+      return;
+    }
+
+    console.log("✅ Message is for me from admin");
+
+    setMessages((prev) => {
+      const exists = prev.some((m) => m.id === data.id);
+      if (exists) {
+        console.log("⚠️ Message already exists");
+        return prev;
+      }
+
+      console.log("✅ Adding admin message to chat");
+      return [
+        ...prev,
+        {
+          id: data.id,
+          text: data.text,
+          sender: "admin",
+          message_type: data.message_type || "normal",
+          user_id: data.user_id,
+          receiver_id: data.receiver_id,
+          created_at: data.created_at,
+          time: new Date(data.created_at).toLocaleTimeString(),
+        },
+      ];
     });
+  };
 
-    return () => {
-      channel.stopListening("MessageSent");
-      echo.leave(channelName);
-    };
-  }, [user]);
+  channel.listen("MessageSent", handleIncomingMessage);
+
+  return () => {
+    console.log("🔌 Customer disconnecting");
+    channel.stopListening("MessageSent", handleIncomingMessage);
+    echo.leave(channelName);
+  };
+}, [user]);
+
+
+
+
+
+
 
   const sendMessage = async () => {
     if (!message.trim() || !user) return;
@@ -164,74 +200,108 @@ export default function CustomerChat() {
     }
   };
 
-  const sendMessageWithPayment = async (text, transactionId = null) => {
-    const tempId = `tmp-${Date.now()}`;
-    const currentMessageType = messageType;
 
-    const optimistic = {
-      id: tempId,
+
+
+
+
+
+
+
+
+
+
+
+
+const sendMessageWithPayment = async (text, transactionId = null) => {
+  const tempId = `tmp-${Date.now()}`;
+  const currentMessageType = messageType;
+
+  // ✅ FIX: Get admin ID dynamically
+  let adminId = 1; // fallback
+  try {
+    const adminRes = await API.get('/admin-info');
+    adminId = adminRes.data.admin_id;
+    console.log("✅ Got admin ID:", adminId);
+  } catch (err) {
+    console.error("⚠️ Failed to get admin ID, using fallback:", err);
+  }
+
+  const optimistic = {
+    id: tempId,
+    text,
+    sender: "customer",
+    message_type: currentMessageType,
+    user_id: user.id,
+    receiver_id: adminId, // ✅ FIXED: Use dynamic admin ID
+    created_at: new Date().toISOString(),
+    time: new Date().toLocaleTimeString(),
+  };
+
+  setMessages((prev) => [...prev, optimistic]);
+  setMessage("");
+  setMessageType("normal");
+  setWordCount(0);
+  setWordLimitError("");
+
+  try {
+    const payload = {
       text,
-      sender: "customer",
+      receiver_id: adminId, // ✅ FIXED: Use dynamic admin ID
       message_type: currentMessageType,
-      user_id: user.id,
-      receiver_id: 1,
-      created_at: new Date().toISOString(),
-      time: new Date().toLocaleTimeString(),
     };
 
-    setMessages((prev) => [...prev, optimistic]);
-    setMessage("");
-    setMessageType("normal");
-    setWordCount(0);
-    setWordLimitError("");
-
-    try {
-      const payload = {
-        text,
-        receiver_id: 1, 
-        message_type: currentMessageType,
-      };
-
-      if (transactionId) {
-        payload.transaction_id = transactionId;
-      }
-
-      const res = await API.post("/messages", payload);
-      const real = res.data;
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId
-            ? {
-                id: real.id,
-                text: real.text,
-                sender: "customer",
-                message_type: real.message_type || currentMessageType,
-                user_id: real.user_id,
-                receiver_id: real.receiver_id,
-                created_at: real.created_at,
-                time: new Date(real.created_at).toLocaleTimeString(),
-              }
-            : m
-        )
-      );
-
-      if (transactionId) {
-        setPaymentRequired(false);
-      }
-    } catch (err) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setMessage(text);
-      setMessageType(currentMessageType);
-      
-      if (err.response?.status === 402 || err.response?.data?.requires_payment) {
-        setPendingMessage(text);
-        setShowPaymentModal(true);
-      } else {
-        alert("Failed to send message");
-      }
+    if (transactionId) {
+      payload.transaction_id = transactionId;
     }
-  };
+
+    const res = await API.post("/messages", payload);
+    const real = res.data;
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === tempId
+          ? {
+              id: real.id,
+              text: real.text,
+              sender: "customer",
+              message_type: real.message_type || currentMessageType,
+              user_id: real.user_id,
+              receiver_id: real.receiver_id,
+              created_at: real.created_at,
+              time: new Date(real.created_at).toLocaleTimeString(),
+            }
+          : m
+      )
+    );
+
+    if (transactionId) {
+      setPaymentRequired(false);
+    }
+  } catch (err) {
+    setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    setMessage(text);
+    setMessageType(currentMessageType);
+    
+    if (err.response?.status === 402 || err.response?.data?.requires_payment) {
+      setPendingMessage(text);
+      setShowPaymentModal(true);
+    } else {
+      alert("Failed to send message");
+    }
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
 
   const handlePaymentSubmit = async (transactionId) => {
     try {
