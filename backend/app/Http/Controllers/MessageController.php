@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\Log;
 
+
 class MessageController extends Controller
 {
     /**
@@ -184,14 +185,6 @@ public function store(Request $request)
 
 
 
-
-
-
-
-
-
-
-
     /**
      * Get all chat users for admin dashboard
      * Returns list of ALL customers with their last message (if any)
@@ -359,6 +352,26 @@ public function store(Request $request)
             'requires_payment' => $requiresPayment,
             'message_type' => $messageType,
             'amount' => $requiresPayment ? 20.00 : 0,
+        ]);
+    }
+
+
+
+     public function getAdminId()
+    {
+        // Get the first admin user
+        $admin = User::where('role', 'admin')->first();
+
+        if (!$admin) {
+            Log::error("No admin user found in database");
+            return response()->json(['error' => 'No admin available'], 404);
+        }
+
+        Log::info("Returning admin ID: {$admin->id} (Name: {$admin->name}) for customer messaging");
+
+        return response()->json([
+            'admin_id' => $admin->id,
+            'admin_name' => $admin->name,
         ]);
     }
 }

@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('chat-users', [MessageController::class, 'chatUsers']);
     Route::get('users', [MessageController::class, 'allUsers']);
     Route::post('messages/mark-read', [MessageController::class, 'markAsRead']);
+    Route::get('admin-info', [MessageController::class, 'getAdminId']);
 
     // Admin-only routes
     Route::middleware('admin')->group(function () {
