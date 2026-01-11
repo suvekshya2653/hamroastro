@@ -17,6 +17,7 @@ export default function Messages() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedRashi, setSelectedRashi] = useState("");
+  const [showUserDetails, setShowUserDetails] = useState(false);
   const selectedUserRef = useRef(null);
 
   const rashiList = [
@@ -63,11 +64,6 @@ useEffect(() => {
     setCurrentUser(user);
 }, [navigate]);
 
-
-
-
-
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -102,15 +98,8 @@ useEffect(() => {
     fetchChatUsers();
   }, [currentUser, navigate]);
 
-
-
-
-
-
-
 // ✅ Admin Real-time Listener
 useEffect(() => {
-  // Wait for currentUser to be loaded
   if (!currentUser?.id) {
     console.log("⏳ Waiting for currentUser to load...");
     return;
@@ -130,49 +119,42 @@ useEffect(() => {
   
   const channel = echo.private(channelName);
 
-  // Listen for subscription success
   channel.subscribed(() => {
     console.log("✅✅✅ ADMIN SUCCESSFULLY SUBSCRIBED ✅✅✅");
     console.log("📡 Listening on channel:", channelName);
     console.log("👂 Ready to receive customer messages!");
   });
 
-  // Listen for subscription errors
   channel.error((error) => {
     console.error("❌❌❌ ADMIN SUBSCRIPTION ERROR ❌❌❌");
     console.error("Channel:", channelName);
     console.error("Error:", error);
   });
 
-  // Message handler
   const handleIncomingMessage = (data) => {
-    console.log("🔔🔔🔔 NEW MESSAGE EVENT RECEIVED 🔔🔔🔔");
-    console.log("📩 Full Data:", data);
-    console.log("📩 Message ID:", data.id);
-    console.log("📩 Text:", data.text);
-    console.log("📩 From user_id:", data.user_id);
-    console.log("📩 To receiver_id:", data.receiver_id);
-    console.log("📩 Message Type:", data.message_type);
-    console.log("👤 Current Admin ID:", adminId);
-    console.log("👥 Selected User ID:", selectedUser?.id);
+    console.log("=== 🔔 ADMIN RECEIVED MESSAGE ===");
+    console.log("Message ID:", data.id);
+    console.log("From user_id:", data.user_id, "| Type:", typeof data.user_id);
+    console.log("To receiver_id:", data.receiver_id, "| Type:", typeof data.receiver_id);
+    console.log("My admin ID:", adminId, "| Type:", typeof adminId);
+    console.log("Text:", data.text.substring(0, 50));
+    console.log("Message Type:", data.message_type);
     
-    // Verify this message is for the admin
-    if (data.receiver_id !== adminId) {
+    const isForMe = Number(data.receiver_id) === Number(adminId);
+    
+    console.log("Is for me?", isForMe, `(${data.receiver_id} === ${adminId})`);
+
+    if (!isForMe) {
       console.log("⚠️ Message NOT for this admin, ignoring");
-      console.log(`   Expected receiver_id: ${adminId}, Got: ${data.receiver_id}`);
       return;
     }
 
-    console.log("✅ Message IS for admin!");
-    console.log("📨 From customer ID:", data.user_id);
+    console.log("✅ Message IS for admin from customer:", data.user_id);
 
-    // If viewing this customer's chat, add message to display
-
-if (selectedUserRef.current?.id === data.user_id) {
+    if (selectedUserRef.current?.id === data.user_id) {
       console.log("✅ Customer chat window is OPEN");
       
       setMessages((prevMessages) => {
-        // Check for duplicate
         const isDuplicate = prevMessages.some((m) => m.id === data.id);
         
         if (isDuplicate) {
@@ -180,7 +162,7 @@ if (selectedUserRef.current?.id === data.user_id) {
           return prevMessages;
         }
 
-        console.log("✅✅✅ ADDING MESSAGE TO CHAT DISPLAY ✅✅✅");
+        console.log("✅✅✅ ADDING MESSAGE TO ADMIN CHAT DISPLAY ✅✅✅");
         
         const newMessage = {
           id: data.id,
@@ -194,15 +176,14 @@ if (selectedUserRef.current?.id === data.user_id) {
           sender_name: data.sender_name,
         };
         
-        console.log("📝 New message object:", newMessage);
+        console.log("New message object:", newMessage);
         return [...prevMessages, newMessage];
       });
     } else {
       console.log("ℹ️ Message from different customer (chat not open)");
-      console.log(`   Expected user_id: ${selectedUser?.id}, Got: ${data.user_id}`);
+      console.log(`   Selected user: ${selectedUserRef.current?.id}, Message from: ${data.user_id}`);
     }
 
-    // Update sidebar chat list
     console.log("📋 Updating sidebar chat list...");
     setChatUsers((prevUsers) => {
       const updatedUsers = prevUsers.map((user) => {
@@ -223,7 +204,6 @@ if (selectedUserRef.current?.id === data.user_id) {
         return user;
       });
 
-      // Sort by latest message
       const sorted = updatedUsers.sort((a, b) => {
         const dateA = a.last_message?.created_at ? new Date(a.last_message.created_at) : new Date(0);
         const dateB = b.last_message?.created_at ? new Date(b.last_message.created_at) : new Date(0);
@@ -234,22 +214,19 @@ if (selectedUserRef.current?.id === data.user_id) {
       return sorted;
     });
 
-    console.log("🔔 Message handling complete!");
+    console.log("=== MESSAGE HANDLING COMPLETE ===");
   };
 
-  // Start listening
   console.log("👂 Starting to listen for 'MessageSent' events...");
   channel.listen("MessageSent", handleIncomingMessage);
 
-  // Cleanup function
   return () => {
     console.log("🔌 CLEANUP: Unsubscribing from:", channelName);
     channel.stopListening("MessageSent", handleIncomingMessage);
     echo.leave(channelName);
   };
-}, [currentUser]); // Dependencies: re-run when these change
+}, [currentUser]);
 
-  // ✅ FIXED: Fetch messages for selected user
   const fetchMessages = async (userId) => {
     setLoading(true);
     try {
@@ -265,7 +242,6 @@ if (selectedUserRef.current?.id === data.user_id) {
       console.log("📜 Loaded", response.data.length, "messages for user", userId);
       setMessages(response.data || []);
       
-      // Mark messages as read
       setChatUsers((prev) =>
         prev.map((user) =>
           user.id === userId ? { ...user, unread_count: 0 } : user
@@ -279,16 +255,15 @@ if (selectedUserRef.current?.id === data.user_id) {
     }
   };
 
-  // Select a user to chat with
   const handleSelectUser = (user) => {
     console.log("👤 Selected customer:", user.name, "ID:", user.id);
     setSelectedUser(user);
     selectedUserRef.current = user; 
     setSelectedRashi("");
+    setShowUserDetails(false);
     fetchMessages(user.id);
   };
 
-  // Send message to customer
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUser || !currentUser) {
       console.log("⚠️ Cannot send: missing data");
@@ -390,34 +365,34 @@ if (selectedUserRef.current?.id === data.user_id) {
           transition-all duration-300
       `}>
         {/* Admin Header */}
-        <div className="bg-[#202c33] p-4 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="bg-[#202c33] p-3 sm:p-4 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {currentUser && (
-              <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                 {currentUser.name?.[0]?.toUpperCase() || "A"}
               </div>
             )}
-            <div>
-              <h3 className="font-semibold text-white text-lg">Admin Panel</h3>
-              <p className="text-xs text-gray-400">Hamro Astro</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-white text-base sm:text-lg truncate">Admin Panel</h3>
+              <p className="text-xs text-gray-400 truncate">Hamro Astro</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-green-500">Online</span>
+            <span className="text-xs text-green-500 hidden sm:inline">Online</span>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="p-3 bg-[#111b21] flex-shrink-0">
+        <div className="p-2 sm:p-3 bg-[#111b21] flex-shrink-0">
           <div className="relative">
-            <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <FaSearch className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm" />
             <input
               type="text"
               placeholder="Search customers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-2 rounded-lg bg-[#202c33] text-white placeholder-gray-500 focus:outline-none"
+              className="w-full pl-9 sm:pl-12 pr-3 sm:pr-4 py-2 rounded-lg bg-[#202c33] text-white text-sm placeholder-gray-500 focus:outline-none"
             />
           </div>
         </div>
@@ -425,35 +400,35 @@ if (selectedUserRef.current?.id === data.user_id) {
         {/* Customer List */}
         <div className="flex-1 overflow-y-auto">
           {filteredUsers.length === 0 ? (
-            <p className="text-center text-gray-500 mt-10">No customers found</p>
+            <p className="text-center text-gray-500 mt-10 text-sm px-4">No customers found</p>
           ) : (
             filteredUsers.map((user) => (
               <div
                 key={user.id}
                 onClick={() => handleSelectUser(user)}
-                className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-[#202c33] transition ${
+                className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 cursor-pointer hover:bg-[#202c33] transition ${
                   selectedUser?.id === user.id ? "bg-[#2a3942]" : ""
                 }`}
               >
-                <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">
                   {user.name[0].toUpperCase()}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <h4 className="font-medium text-white truncate">{user.name}</h4>
-                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <h4 className="font-medium text-white truncate text-sm sm:text-base">{user.name}</h4>
+                    <span className="text-xs text-gray-500 flex-shrink-0">
                       {formatTime(user.last_message?.created_at)}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-gray-400 truncate flex-1">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="text-xs sm:text-sm text-gray-400 truncate flex-1">
                       {user.last_message?.text || "No messages yet"}
                     </p>
 
                     {user.unread_count > 0 && (
-                      <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2 flex-shrink-0">
+                      <span className="bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                         {user.unread_count}
                       </span>
                     )}
@@ -465,80 +440,85 @@ if (selectedUserRef.current?.id === data.user_id) {
         </div>
       </div>
 
-      
-      {/* RIGHT SIDE - Chat Area */}
+{/* RIGHT SIDE - Chat Area */}
       <div className="flex-1 flex flex-col bg-[#0b141a] min-w-0">
         {selectedUser ? (
           <>
             {/* Customer Details Header */}
-            <div className="bg-[#202c33] border-b border-[#2a3942]">
-              <div className="p-3 flex items-center gap-3 border-b border-[#2a3942]">
+            <div className="bg-[#202c33] border-b border-[#2a3942] flex-shrink-0">
+              <div className="p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 border-b border-[#2a3942]">
                 <FaArrowLeft
-                  className="text-white md:hidden cursor-pointer"
+                  className="text-white md:hidden cursor-pointer text-lg flex-shrink-0"
                   onClick={() => setSelectedUser(null)}
                 />
-                <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">
                   {selectedUser.name[0].toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white">{selectedUser.name}</h3>
-                  <p className="text-xs text-gray-400">{selectedUser.email || "Customer"}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-white text-sm sm:text-base truncate">{selectedUser.name}</h3>
+                  <p className="text-xs text-gray-400 truncate">{selectedUser.email || "Customer"}</p>
                 </div>
-                <FaEllipsisV className="text-gray-400 cursor-pointer hover:text-white" />
+                <FaEllipsisV 
+                  className="text-gray-400 cursor-pointer hover:text-white flex-shrink-0" 
+                  onClick={() => setShowUserDetails(!showUserDetails)}
+                />
               </div>
 
-              <div className="px-4 py-2 border-b border-[#2a3942] flex items-center gap-2">
-                <label className="text-gray-400 text-sm font-medium">Rashi:</label>
-                <select
-                  value={selectedRashi}
-                  onChange={(e) => setSelectedRashi(e.target.value)}
-                  className="bg-[#2a3942] text-white text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#00a884] border border-[#3d4a54]"
-                >
-                  <option value="">Select Rashi</option>
-                  {rashiList.map((rashi, idx) => (
-                    <option key={idx} value={rashi}>{rashi}</option>
-                  ))}
-                </select>
-              </div>
+              {/* User Details - Collapsible on mobile */}
+              <div className={`${showUserDetails ? 'block' : 'hidden'} md:block`}>
+                <div className="px-3 sm:px-4 py-2 border-b border-[#2a3942] flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <label className="text-gray-400 text-xs sm:text-sm font-medium flex-shrink-0">Rashi:</label>
+                  <select
+                    value={selectedRashi}
+                    onChange={(e) => setSelectedRashi(e.target.value)}
+                    className="w-full sm:w-auto bg-[#2a3942] text-white text-xs sm:text-sm rounded-md px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#00a884] border border-[#3d4a54]"
+                  >
+                    <option value="">Select Rashi</option>
+                    {rashiList.map((rashi, idx) => (
+                      <option key={idx} value={rashi}>{rashi}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="bg-[#1c2730] px-4 py-3">
-                <div className="grid grid-cols-4 gap-4 mb-3 text-xs">
-                  <div>
-                    <span className="text-gray-400 block mb-1">लिङ्ग:</span>
-                    <span className="text-gray-200">{selectedUser.gender || "N/A"}</span>
+                <div className="bg-[#1c2730] px-3 sm:px-4 py-2 sm:py-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-2 sm:mb-3 text-xs">
+                    <div>
+                      <span className="text-gray-400 block mb-1">लिङ्ग:</span>
+                      <span className="text-gray-200 text-xs sm:text-sm">{selectedUser.gender || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block mb-1">जन्म मिति:</span>
+                      <span className="text-gray-200 text-xs sm:text-sm truncate block">{selectedUser.dob_nep || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block mb-1">जन्म समय:</span>
+                      <span className="text-gray-200 text-xs sm:text-sm">{selectedUser.birth_time || "N/A"}</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
+                      <span className="text-gray-200 text-xs sm:text-sm break-words">
+                        {[selectedUser.perm_street, selectedUser.perm_city, selectedUser.perm_country]
+                          .filter(Boolean)
+                          .join(', ') || "N/A"}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">जन्म मिति:</span>
-                    <span className="text-gray-200">{selectedUser.dob_nep || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">जन्म समय:</span>
-                    <span className="text-gray-200">{selectedUser.birth_time || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block mb-1">स्थायी ठेगाना:</span>
-                    <span className="text-gray-200">
-                      {[selectedUser.perm_street, selectedUser.perm_city, selectedUser.perm_country]
+                  
+                  <div className="text-xs">
+                    <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
+                    <span className="text-gray-200 text-xs sm:text-sm break-words">
+                      {[selectedUser.temp_street, selectedUser.temp_city, selectedUser.temp_country]
                         .filter(Boolean)
                         .join(', ') || "N/A"}
                     </span>
                   </div>
-                </div>
-                
-                <div className="text-xs">
-                  <span className="text-gray-400 block mb-1">अस्थायी ठेगाना:</span>
-                  <span className="text-gray-200">
-                    {[selectedUser.temp_street, selectedUser.temp_city, selectedUser.temp_country]
-                      .filter(Boolean)
-                      .join(', ') || "N/A"}
-                  </span>
                 </div>
               </div>
             </div>
              
             {/* Messages Display Area */}
             <div
-              className="flex-1 overflow-y-auto p-4 space-y-2"
+              className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2"
               style={{
                 backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
                 backgroundSize: "cover",
@@ -546,140 +526,120 @@ if (selectedUserRef.current?.id === data.user_id) {
             >
               {loading ? (
                 <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-white"></div>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex justify-center items-center h-full">
-                  <p className="text-gray-400">No messages yet. Start the conversation!</p>
+                <div className="flex justify-center items-center h-full px-4">
+                  <p className="text-gray-400 text-sm sm:text-base text-center">No messages yet. Start the conversation!</p>
                 </div>
               ) : (
+                messages.map((msg, index) => {
+                  const isAdminMessage = msg.receiver_id === selectedUser?.id;
+                  
+                  console.log(`[Display] Message ID: ${msg.id} | user_id: ${msg.user_id} | currentUser.id: ${currentUser?.id} | isAdmin: ${isAdminMessage} | text: "${msg.text.substring(0, 30)}"`);
+                  
+                  let messageColor;
 
+                  if (isAdminMessage) {
+                    if (msg.message_type === "answer") {
+                      messageColor = "bg-[#005c4b]";
+                    } else {
+                      messageColor = "bg-[#005c4b]";
+                    }
+                  } else {
+                    if (msg.message_type === "question") {
+                      messageColor = "bg-[#1e3a5f]";
+                    } else {
+                      messageColor = "bg-[#202c33]";
+                    }
+                  }
 
+                  return (
+                    <div
+                      key={msg.id || `msg-${index}`}
+                      className={`flex ${isAdminMessage ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] sm:max-w-[75%] md:max-w-[65%] rounded-md px-2.5 sm:px-3 py-2 shadow-sm ${messageColor} text-white relative`}
+                        style={{
+                          borderRadius: isAdminMessage ? "8px 8px 0px 8px" : "8px 8px 8px 0px"
+                        }}
+                      >
+                        {isAdminMessage && msg.message_type === "answer" && (
+                          <div className="text-[10px] sm:text-xs text-purple-300 mb-1 font-semibold">
+                            ⭐ Original Answer
+                          </div>
+                        )}
+                        
+                        {!isAdminMessage && msg.message_type === "question" && (
+                          <div className="text-[10px] sm:text-xs text-yellow-300 mb-1 font-semibold">
+                            💰 Paid Question
+                          </div>
+                        )}
+                        
+                        <p className="break-words text-[13px] sm:text-[14.2px] leading-[18px] sm:leading-[19px]">{msg.text}</p>
 
+                        {!isAdminMessage && msg.is_paid && msg.payment_status && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded ${
+                              msg.payment_status === 'paid' ? 'bg-blue-600' : 'bg-orange-600'
+                            }`}>
+                              {msg.payment_status === 'paid' ? '💳 Paid' : '⏳ Pending'}
+                            </span>
+                          </div>
+                        )}
 
-
-
-
-
-messages.map((msg, index) => {
-  // ✅ CORRECT: Check if message was sent BY the current admin user
- const isAdminMessage = msg.receiver_id === selectedUser?.id;
-  
-  console.log(`[Display] Message ID: ${msg.id} | user_id: ${msg.user_id} | currentUser.id: ${currentUser?.id} | isAdmin: ${isAdminMessage} | text: "${msg.text.substring(0, 30)}"`);
-  
-  let messageColor;
-
-  if (isAdminMessage) {
-    // Admin sent this message
-    if (msg.message_type === "answer") {
-      messageColor = "bg-[#005c4b]"; // ✅ Changed from purple to green
-    } else {
-      messageColor = "bg-[#005c4b]";
-    }
-  } else {
-    // Customer sent this message
-    if (msg.message_type === "question") {
-      messageColor = "bg-[#1e3a5f]";
-    } else {
-      messageColor = "bg-[#202c33]";
-    }
-  }
-
-  return (
-    <div
-      key={msg.id || `msg-${index}`}
-      className={`flex ${isAdminMessage ? "justify-end" : "justify-start"}`}
-    >
-      <div
-        className={`max-w-[65%] rounded-md px-3 py-2 shadow-sm ${messageColor} text-white relative`}
-        style={{
-          borderRadius: isAdminMessage ? "8px 8px 0px 8px" : "8px 8px 8px 0px"
-        }}
-      >
-        {isAdminMessage && msg.message_type === "answer" && (
-          <div className="text-xs text-purple-300 mb-1 font-semibold">
-            ⭐ Original Answer
-          </div>
-        )}
-        
-        {!isAdminMessage && msg.message_type === "question" && (
-          <div className="text-xs text-yellow-300 mb-1 font-semibold">
-            💰 Paid Question
-          </div>
-        )}
-        
-        <p className="break-words text-[14.2px] leading-[19px]">{msg.text}</p>
-
-        {!isAdminMessage && msg.is_paid && msg.payment_status && (
-          <div className="flex items-center gap-1 mt-1">
-            <span className={`text-[10px] px-2 py-0.5 rounded ${
-              msg.payment_status === 'paid' ? 'bg-blue-600' : 'bg-orange-600'
-            }`}>
-              {msg.payment_status === 'paid' ? '💳 Paid' : '⏳ Pending'}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-end gap-1 mt-1">
-          <span className="text-[11px] text-gray-300 opacity-70">
-            {formatTime(msg.created_at)}
-          </span>
-          {isAdminMessage && (
-            <FaCheckDouble className="text-[11px] text-blue-400" />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-})
-
-
-
-
-
-
-
-
-
-
-
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span className="text-[10px] sm:text-[11px] text-gray-300 opacity-70">
+                            {formatTime(msg.created_at)}
+                          </span>
+                          {isAdminMessage && (
+                            <FaCheckDouble className="text-[10px] sm:text-[11px] text-blue-400" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Message Type Toggle + Input Box */}
-            <div className="bg-[#202c33]">
-              <div className="flex border-b border-[#2a3942] p-2 gap-2">
+            <div className="bg-[#202c33] flex-shrink-0">
+              <div className="flex border-b border-[#2a3942] p-1.5 sm:p-2 gap-1.5 sm:gap-2">
                 <button
                   onClick={() => setMessageType("normal")}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                  className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition ${
                     messageType === "normal"
                       ? "bg-[#00a884] text-white"
                       : "bg-[#2a3942] text-gray-400 hover:bg-[#374952]"
                   }`}
                 >
-                  💬 Normal Conversation
+                  <span className="hidden sm:inline">💬 Normal Conversation</span>
+                  <span className="sm:hidden">💬 Normal</span>
                 </button>
                 <button
                   onClick={() => setMessageType("answer")}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                  className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition ${
                     messageType === "answer"
                       ? "bg-[#8b5cf6] text-white"
                       : "bg-[#2a3942] text-gray-400 hover:bg-[#374952]"
                   }`}
                 >
-                  ⭐ Original Answer
+                  <span className="hidden sm:inline">⭐ Original Answer</span>
+                  <span className="sm:hidden">⭐ Answer</span>
                 </button>
               </div>
 
-              <div className="p-3 flex items-center gap-2">
+              <div className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2">
                 <input
                   type="text"
-                  placeholder={messageType === "answer" ? "Type your answer..." : "Type a message to customer..."}
+                  placeholder={messageType === "answer" ? "Type your answer..." : "Type a message..."}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className={`flex-1 rounded-lg px-4 py-3 focus:outline-none placeholder-gray-500 text-white ${
+                  className={`flex-1 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm focus:outline-none placeholder-gray-500 text-white ${
                     messageType === "answer" 
                       ? "bg-[#4c1d95] border-2 border-[#8b5cf6]" 
                       : "bg-[#2a3942]"
@@ -688,22 +648,22 @@ messages.map((msg, index) => {
                 <button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim()}
-                  className={`rounded-full p-3 transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`rounded-full p-2.5 sm:p-3 transition disabled:opacity-50 disabled:cursor-not-allowed ${
                     messageType === "answer"
                       ? "bg-[#8b5cf6] hover:bg-[#7c3aed]"
                       : "bg-[#00a884] hover:bg-[#06cf9c]"
                   } text-white`}
                 >
-                  <FaPaperPlane />
+                  <FaPaperPlane className="text-sm sm:text-base" />
                 </button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <div className="text-7xl mb-4">💬</div>
-            <h2 className="text-2xl font-light mb-2">Hamro Astro Admin</h2>
-            <p className="text-center max-w-md">
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 px-4">
+            <div className="text-5xl sm:text-7xl mb-4">💬</div>
+            <h2 className="text-xl sm:text-2xl font-light mb-2 text-center">Hamro Astro Admin</h2>
+            <p className="text-center text-sm sm:text-base max-w-md">
               Select a customer to view and respond to their messages.
             </p>
           </div>
