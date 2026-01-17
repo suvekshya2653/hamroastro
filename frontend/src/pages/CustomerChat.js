@@ -374,7 +374,7 @@ export default function CustomerChat() {
       </div>
 
       {/* RIGHT SIDE - Chat Area */}
-      <div className="flex-1 flex flex-col w-full lg:w-auto">
+      <div className="flex-1 flex flex-col w-full lg:w-auto h-screen overflow-hidden">
         {/* Chat Header */}
         <div className="p-3 sm:p-5 border-b border-gray-800 bg-[#111B28] flex-shrink-0">
           <div className="flex items-center gap-3 lg:block">
@@ -385,6 +385,8 @@ export default function CustomerChat() {
             </div>
           </div>
         </div>
+
+
 
         {/* Messages Area */}
         <div
@@ -430,6 +432,10 @@ export default function CustomerChat() {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+
+
+
 
         {/* Input Area */}
         <div className="bg-[#202c33] border-t border-gray-800 flex-shrink-0">
