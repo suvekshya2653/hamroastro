@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Default Reverb Server
@@ -12,7 +11,6 @@ return [
     | connected clients. At this time only "reverb" is supported.
     |
     */
-
     'default' => env('REVERB_SERVER', 'reverb'),
 
     /*
@@ -25,14 +23,12 @@ return [
     | the array below. You should ensure all the options are present.
     |
     */
-
     'servers' => [
-
         'reverb' => [
-            'host' => env('REVERB_SERVER_HOST', '0.0.0.0'),
-            'port' => env('REVERB_SERVER_PORT', 8080),
+            'host' => env('REVERB_HOST', '0.0.0.0'),
+            'port' => env('REVERB_PORT', 8080),
             'path' => env('REVERB_SERVER_PATH', ''),
-            'hostname' => env('REVERB_HOST'),
+            'hostname' => env('REVERB_SERVER_HOST', 'localhost'),
             'options' => [
                 'tls' => [],
             ],
@@ -53,7 +49,6 @@ return [
             'pulse_ingest_interval' => env('REVERB_PULSE_INGEST_INTERVAL', 15),
             'telescope_ingest_interval' => env('REVERB_TELESCOPE_INGEST_INTERVAL', 15),
         ],
-
     ],
 
     /*
@@ -66,19 +61,16 @@ return [
     | your server will support, including their connection credentials.
     |
     */
-
     'apps' => [
-
         'provider' => 'config',
-
         'apps' => [
             [
                 'key' => env('REVERB_APP_KEY'),
                 'secret' => env('REVERB_APP_SECRET'),
                 'app_id' => env('REVERB_APP_ID'),
                 'options' => [
-                    'host' => env('REVERB_HOST'),
-                    'port' => env('REVERB_PORT', 443),
+                    'host' => env('REVERB_SERVER_HOST', 'localhost'),
+                    'port' => env('REVERB_SERVER_PORT', 443),
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
@@ -89,7 +81,5 @@ return [
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
             ],
         ],
-
     ],
-
 ];
