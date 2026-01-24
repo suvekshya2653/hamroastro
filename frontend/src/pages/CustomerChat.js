@@ -16,8 +16,9 @@ const validateUserData = (storedUser, apiUser) => {
 export default function CustomerChat() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
+  const messagesEndRef = useRef(null); 
   const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
   const [paymentRequired, setPaymentRequired] = useState(false);
@@ -98,6 +99,47 @@ export default function CustomerChat() {
     }
   };
 
+
+
+  // Auto-scroll and handle keyboard on mobile
+useEffect(() => {
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+  
+  scrollToBottom();
+  
+  // Delay scroll for mobile keyboard
+  const timer = setTimeout(scrollToBottom, 100);
+  return () => clearTimeout(timer);
+}, [messages]);
+
+// Handle mobile keyboard appearing
+useEffect(() => {
+  const handleResize = () => {
+    if (window.visualViewport) {
+      const viewportHeight = window.visualViewport.height;
+      document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+    }
+  };
+  
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleResize);
+    handleResize();
+  }
+  
+  return () => {
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', handleResize);
+    }
+  };
+}, []);
+
+
+
+
   useEffect(() => {
     if (!user) return;
 
@@ -170,6 +212,9 @@ export default function CustomerChat() {
         return;
       }
     }
+    if (window.innerWidth < 1024) {
+      setShowSidebar(false);
+    } 
 
     const text = message.trim();
 
@@ -390,6 +435,7 @@ export default function CustomerChat() {
 
         {/* Messages Area */}
         <div
+          ref={messagesContainerRef}
           className="p-3 sm:p-6 space-y-2 sm:space-y-3 overflow-y-auto flex-1"
           style={{
             backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
@@ -490,7 +536,10 @@ export default function CustomerChat() {
           <div className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
             <input
               type="text"
-              className="flex-1 p-2.5 sm:p-3 rounded-lg bg-[#2a3942] text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+              className="flex-1 p-3 rounded-lg bg-[#2a3942] text-white text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="sentences" 
               placeholder={messageType === "question" ? "Ask your question..." : "Type your message..."}
               value={message}
               onChange={(e) => {

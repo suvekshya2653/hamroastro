@@ -69,6 +69,44 @@ useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-scroll and handle keyboard on mobile
+useEffect(() => {
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  };
+    scrollToBottom();
+  
+  // Delay scroll for mobile keyboard
+  const timer = setTimeout(scrollToBottom, 100);
+  return () => clearTimeout(timer);
+}, [messages]);
+
+// Handle mobile keyboard appearing
+useEffect(() => {
+  const handleResize = () => {
+    if (window.visualViewport) {
+      const viewportHeight = window.visualViewport.height;
+      document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+    }
+  };
+    if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleResize);
+    handleResize();
+  }
+  
+  return () => {
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', handleResize);
+    }
+  };
+}, []);
+
+
   // Fetch all customers
   useEffect(() => {
     if (!currentUser) return;
@@ -633,13 +671,17 @@ useEffect(() => {
               </div>
 
               <div className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2">
+
                 <input
                   type="text"
                   placeholder={messageType === "answer" ? "Type your answer..." : "Type a message..."}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className={`flex-1 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm focus:outline-none placeholder-gray-500 text-white ${
+                    autoComplete="off"           
+                    autoCorrect="off"           
+                    autoCapitalize="sentences"   
+                  className={`flex-1 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none placeholder-gray-500 text-white ${
                     messageType === "answer" 
                       ? "bg-[#4c1d95] border-2 border-[#8b5cf6]" 
                       : "bg-[#2a3942]"
