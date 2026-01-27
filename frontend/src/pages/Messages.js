@@ -80,6 +80,11 @@ useEffect(() => {
     }
   };
     scrollToBottom();
+
+
+    
+
+
   
   // Delay scroll for mobile keyboard
   const timer = setTimeout(scrollToBottom, 100);
@@ -363,12 +368,20 @@ useEffect(() => {
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
+
+
+const handleKeyPress = (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSendMessage();
+    // Reset textarea height after sending
+    setTimeout(() => {
+      e.target.style.height = 'auto';
+    }, 0);
+  }
+};
+
+
 
   const filteredUsers = chatUsers.filter((user) =>
     user.name.toLowerCase().includes(search.toLowerCase())
@@ -672,21 +685,32 @@ useEffect(() => {
 
               <div className="p-2 sm:p-3 flex items-center gap-1.5 sm:gap-2">
 
-                <input
-                  type="text"
-                  placeholder={messageType === "answer" ? "Type your answer..." : "Type a message..."}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                    autoComplete="off"           
-                    autoCorrect="off"           
-                    autoCapitalize="sentences"   
-                  className={`flex-1 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none placeholder-gray-500 text-white ${
-                    messageType === "answer" 
-                      ? "bg-[#4c1d95] border-2 border-[#8b5cf6]" 
-                      : "bg-[#2a3942]"
-                  }`}
-                />
+
+
+<textarea
+  rows="1"
+  placeholder={messageType === "answer" ? "Type your answer..." : "Type a message..."}
+  value={newMessage}
+  onChange={(e) => {
+    setNewMessage(e.target.value);
+    // Auto-expand textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+  }}
+  onKeyPress={handleKeyPress}
+  autoComplete="off"           
+  autoCorrect="off"           
+  autoCapitalize="sentences"   
+  className={`flex-1 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none placeholder-gray-500 text-white resize-none overflow-hidden max-h-32 ${
+    messageType === "answer" 
+      ? "bg-[#4c1d95] border-2 border-[#8b5cf6]" 
+      : "bg-[#2a3942]"
+  }`}
+  style={{ minHeight: '48px' }}
+/>
+
+
+
                 <button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim()}

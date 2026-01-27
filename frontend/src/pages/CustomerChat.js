@@ -260,6 +260,14 @@ useEffect(() => {
     setWordCount(0);
     setWordLimitError("");
 
+    // Reset textarea height
+setTimeout(() => {
+  const textarea = document.querySelector('textarea');
+  if (textarea) {
+    textarea.style.height = 'auto';
+  }
+}, 0);
+
     try {
       const payload = {
         text,
@@ -318,12 +326,21 @@ useEffect(() => {
     }
   };
 
+
+
   const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+    // Reset textarea height after sending
+    setTimeout(() => {
+      e.target.style.height = 'auto';
+    }, 0);
+  }
+};
+
+
+
 
   if (!user) {
     return (
@@ -534,26 +551,38 @@ useEffect(() => {
 
           {/* Input Box */}
           <div className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-            <input
-              type="text"
-              className="flex-1 p-3 rounded-lg bg-[#2a3942] text-white text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="sentences" 
-              placeholder={messageType === "question" ? "Ask your question..." : "Type your message..."}
-              value={message}
-              onChange={(e) => {
-                const text = e.target.value;
-                setMessage(text);
-                if (messageType === "question") {
-                  const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-                  const count = text.trim() === "" ? 0 : words.length;
-                  setWordCount(count);
-                  setWordLimitError(count > 150 ? "Question exceeds 150 word limit!" : "");
-                }
-              }}
-              onKeyDown={handleKey}
-            />
+
+
+<textarea
+  rows="1"
+  className="flex-1 p-3 rounded-lg bg-[#2a3942] text-white text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00a884] resize-none overflow-hidden max-h-32"
+  autoComplete="off"
+  autoCorrect="off"
+  autoCapitalize="sentences" 
+  placeholder={messageType === "question" ? "Ask your question..." : "Type your message..."}
+  value={message}
+  onChange={(e) => {
+    const text = e.target.value;
+    setMessage(text);
+    
+    // Auto-expand textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+    
+    if (messageType === "question") {
+      const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+      const count = text.trim() === "" ? 0 : words.length;
+      setWordCount(count);
+      setWordLimitError(count > 150 ? "Question exceeds 150 word limit!" : "");
+    }
+  }}
+  onKeyDown={handleKey}
+  style={{ minHeight: '48px' }}
+/>
+
+
+
+
             <button
               onClick={sendMessage}
               disabled={!message.trim() || (messageType === "question" && wordCount > 150)}
