@@ -70,6 +70,27 @@ export default function CustomerChat() {
     loadUserAndMessages();
   }, []);
 
+
+  // 🔥 MOBILE FIX: Handle reconnection when returning to app
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (!document.hidden && user) {
+      console.log("📱 Customer app became visible, reloading messages...");
+      setTimeout(() => {
+        loadMessages(user.id);
+      }, 1000);
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, [user]);
+
+
+
   const loadMessages = async (userId) => {
     try {
       const res = await API.get(`/messages`, {

@@ -64,6 +64,32 @@ useEffect(() => {
     setCurrentUser(user);
 }, [navigate]);
 
+
+
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (!document.hidden && currentUser) {
+      console.log("📱 App became visible, checking connection...");
+      
+      // Reload messages when returning to app
+      if (selectedUser) {
+        setTimeout(() => {
+          console.log("📱 Reloading messages after returning to foreground");
+          fetchMessages(selectedUser.id);
+        }, 1000);
+      }
+    }
+  };
+   if (currentUser) {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
+  
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, [currentUser, selectedUser]);
+
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
